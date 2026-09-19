@@ -78,7 +78,7 @@ Browser, responsiv für Handy und Desktop. Keine Frameworks für die Kernlogik.
 ### 1.5 Konfigurationsobjekt
 Alle Varianten werden in einem `RuleSet`-Objekt abgebildet, damit spätere Regelmodule
 (Riichi, HK) dieselbe Engine nutzen können:
-- Punktesystem-ID, Limit (Standard 1000 Punkte, Option 500), Blumen an/aus,
+- Punktesystem-ID, Limit (Standard 500 Punkte, Option 1000), Blumen an/aus,
   Seven Pairs an/aus, Ost bleibt bei Unentschieden, Auffüllen der toten Wand,
   Startpunkte (Standard 2000), Anzahl Runden.
 
@@ -124,6 +124,9 @@ seedbaren Generator. Grundlage für Tests, KI, Berater und Replay.
 ### 2.5 Protokoll
 - Jede angewandte Aktion wird mit Zugnummer, Spieler und Zeitstempel in ein
   `GameLog` geschrieben. Zusammen mit dem Seed ist das Spiel vollständig reproduzierbar.
+- Format angelehnt an das Mjai-Protokoll (eine JSON-Zeile je Ereignis: `start_hand`,
+  `draw`, `discard`, `chow`, `pung`, `kong`, `mahjong`, `draw_game`, `end_hand`), damit
+  Logs leicht exportierbar und von externen Werkzeugen lesbar sind.
 
 ---
 
@@ -133,112 +136,199 @@ Eigenständiges Modul mit Schnittstelle `score(hand, context, ruleSet) → Score
 Kontext: Gewinner, Selbstzug oder Abwurf, Abwerfender, Rundenwind, Sitzwind,
 letzter Stein von der Wand / aus der toten Wand / Kong geraubt usw.
 
-### 3.1 Grundpunkte (Millington)
-- Mahjong: 20 Grundpunkte.
-- Sätze: Pung einfache Steine offen 2 / verdeckt 4; Pung Endsteine (1, 9) oder Honours
-  offen 4 / verdeckt 8; Kong einfach offen 8 / verdeckt 16; Kong Endsteine/Honours offen
-  16 / verdeckt 32. Chows 0.
-- Paar: Drachen 2, eigener Wind 2, Rundenwind 2 (beides: 4).
-- Blumen/Jahreszeiten: je 4.
-- Bonus: Selbstzug 2, Gewinn mit dem letzten Wandstein 2, mit einem Kong-Ersatzstein 2,
-  Kong geraubt 2, Warten auf einen einzigen möglichen Stein (Edge/Closed/Pair-Wait) 2,
-  Gewinn ohne Chow (All Pungs) laut Verdopplungen unten.
+Die Tabelle folgt Millington und ist mit der Kajongg-Basisregeltabelle "Classical
+Chinese" abgeglichen (siehe RESEARCH.md). Jede Zeile bekommt im Code eine stabile ID,
+die Lexikon, Berater und ScoreSheet gemeinsam nutzen.
+
+### 3.1 Punkte (alle Spieler zählen ihre Hand)
+
+| ID | Regel | Punkte |
+|---|---|---|
+| mahjong | Mahjong (nur Gewinner) | 20 |
+| pung_simple_open / _closed | Pung einfache Steine 2–8 | 2 / 4 |
+| pung_major_open / _closed | Pung Endsteine (1, 9) oder Honours | 4 / 8 |
+| kong_simple_open / _closed | Kong einfache Steine | 8 / 16 |
+| kong_major_open / _closed | Kong Endsteine oder Honours | 16 / 32 |
+| pair_dragon | Paar Drachen | 2 |
+| pair_own_wind | Paar eigener Wind | 2 |
+| pair_round_wind | Paar Rundenwind (kumuliert mit eigenem Wind) | 2 |
+| flower / season | je Blume oder Jahreszeit (wenn aktiv) | 4 |
+| win_self_draw | Gewinn durch Selbstzug | 2 |
+| win_last_wall | Gewinn mit dem letzten Stein der lebenden Wand | 2 |
+| win_kong_replacement | Gewinn mit Ersatzstein nach Kong | 2 |
+| win_rob_kong | Gewinn durch Kong-Raub | 2 |
+| win_pair_wait_simple / _major | Letzter Stein vervollständigt das Paar | 2 / 4 |
+| win_only_possible | Gewinn mit dem einzig möglichen Stein (Kantenwarten, Mittelwarten) | 2 |
+
+Chows zählen 0. Ein Kong wird zur Gewinnerhand mit 4 Steinen gerechnet.
 
 ### 3.2 Verdopplungen (Gewinner)
-- Pung/Kong der Drachen: 1 je Satz. Pung/Kong des eigenen Windes: 1. Rundenwind: 1.
-- Eigene Blume / eigene Jahreszeit: 1; alle vier Blumen oder alle vier Jahreszeiten: 3 bzw. 1
-  (nach Millington-Tabelle festlegen, im Lexikon dokumentieren).
-- Keine Chows (All Pungs): 1. Verdeckte Hand (nur Selbstzug, keine offenen Sätze): 1.
-- Eine Farbe mit Honours (Half Flush): 1. Reine Farbe (Full Flush): 3.
-- Alle Honours und Endsteine: 1. Keine Punkte außer Mahjong (Chicken Hand) nach Option.
-- Drei kleine Drachen: 1; drei kleine Winde: 1; drei große Winde: 2 (Tabelle
-  vollständig im Lexikon).
 
-### 3.3 Verdopplungen und Punkte für Verlierer
-- Nach Millington zählen auch die Nicht-Gewinner ihre Hände (Sätze, Paare, Blumen,
-  Verdopplungen). Die Differenzen werden zwischen allen Spielern paarweise beglichen.
-- Ost zahlt und erhält doppelt.
-- Der Abwerfende zahlt an den Gewinner allein den vollen Betrag; die anderen beiden zahlen
-  ebenfalls (Millington: alle zahlen an den Gewinner, Abwerfender ohne Zuschlag —
-  Option: Abwerfender zahlt für alle).
+| ID | Regel | Verdopplungen |
+|---|---|---|
+| dbl_pung_dragon | Pung/Kong eines Drachen (je Satz) | 1 |
+| dbl_pung_own_wind | Pung/Kong des eigenen Windes | 1 |
+| dbl_pung_round_wind | Pung/Kong des Rundenwindes (kumuliert) | 1 |
+| dbl_own_flower_season | eigene Blume und eigene Jahreszeit | 1 |
+| dbl_all_flowers / dbl_all_seasons | alle vier Blumen / alle vier Jahreszeiten | je 1 |
+| dbl_no_chow | kein Chow (All Pungs) | 1 |
+| dbl_concealed | nur verdeckte Sätze (Gewinn per Selbstzug) | 1 |
+| dbl_three_concealed_pungs | drei verdeckte Pungs | 1 |
+| dbl_half_flush | eine Farbe plus Honours | 1 |
+| dbl_full_flush | reine Farbe | 3 |
+| dbl_terminals_honours | nur Endsteine und Honours | 1 |
+| dbl_all_honours | nur Honours (Millington: Limit; Kajongg-Basis: Limit; DMJL: 2 Verdopplungen) | Limit |
+| dbl_little_three_dragons | zwei Drachen-Pungs plus Drachenpaar | 1 |
+| dbl_little_four_winds | drei Wind-Pungs plus Windpaar | 1 |
+| dbl_zero_point_hand | Hand ohne Punkte außer Mahjong (Chicken Hand) | 1 |
+| dbl_last_tile_wall / dbl_last_discard | Gewinn mit letztem Wandstein / letztem Abwurf | Option (manuell, DMJL) |
+| dbl_original_call | Original Call (Ready ab erstem Abwurf) | Option |
 
-### 3.4 Limit
-- Limit 1000 Punkte (Option 500). Sonderhände zählen als Limit. Reguläre Hände, die
-  das Limit überschreiten, werden auf das Limit gekappt.
-- Halb-Limit-Hände als Option.
+Die Verdopplungen der Verlierer: Drachen-, Wind- und Blumen-Verdopplungen zählen auch
+für Nicht-Gewinner; Handform-Verdopplungen (Flush, All Pungs usw.) nur für den Gewinner
+(Option: auch für Verlierer, wie bei Kajongg/DMJL). Vorbelegung: nur Satz-basierte
+Verdopplungen für Verlierer.
+
+### 3.3 Limit-Hände (Gewinner, Wertung = Limit)
+
+| ID | Name (EN / DE) | Beschreibung | Status |
+|---|---|---|---|
+| lim_thirteen_orphans | Thirteen Orphans / Dreizehn Waisen | 1, 9 jeder Farbe, alle Honours, ein Paar davon | Standard |
+| lim_nine_gates | Nine Gates / Neun Tore | 1112345678999 einer Farbe, verdeckt, plus ein beliebiger Stein der Farbe | Standard |
+| lim_heavenly | Heavenly Hand / Himmlische Hand | Ost gewinnt mit der gegebenen Hand | Standard |
+| lim_earthly | Earthly Hand / Irdische Hand | Gewinn mit Osts erstem Abwurf | Standard |
+| lim_four_kongs | Fourfold Plenty / Vier Kongs | vier Kongs plus Paar | Standard |
+| lim_all_honours | All Honours / Nur Honours | vier Honours-Pungs plus Honours-Paar | Standard |
+| lim_big_four_winds | Four Blessings / Vier Segen | vier Wind-Pungs | Standard |
+| lim_big_three_dragons | Three Great Scholars / Drei Gelehrte | drei Drachen-Pungs | Standard |
+| lim_hidden_treasure | Buried Treasure / Verborgener Schatz | vier verdeckte Pungs, Selbstzug | Standard |
+| lim_concealed_full_flush | Concealed Pure Flush | reine Farbe, vollständig verdeckt | Standard |
+| lim_heads_and_tails | Heads and Tails | nur Pungs aus 1 und 9 | Standard |
+| lim_all_green | Imperial Jade / Kaiserliche Jade | nur 2,3,4,6,8 Bambus und grüner Drache | Standard |
+| lim_plum_blossom | Gathering Plum Blossom | Gewinn mit 5 Kreise als Ersatzstein nach Kong | Standard |
+| lim_plucking_moon | Plucking the Moon | Gewinn mit 1 Kreise als letztem Wandstein | Standard |
+| lim_scratching_pole | Scratching a Carrying Pole | Kong-Raub mit 2 Bambus | Standard |
+| lim_twofold_fortune | Twofold Fortune | Gewinn mit Ersatzstein nach zwei Kongs hintereinander | Standard |
+| lim_wriggling_snake | Wriggling Snake | 1–9 einer Farbe plus Wind-Paar und Winde (BMJA) | Option |
+| lim_gates_of_heaven, lim_knitting, lim_triple_knitting | BMJA-Sonderhände | | Option, halbes Limit möglich |
+| lim_seven_pairs | Seven Pairs | sieben Paare | Option (nicht Millington) |
+
+Limit-Wert: Vorbelegung 500 (Millington-Standardtisch, Kajongg-Basis), Option 1000
+(BMJA, Pomax). Reguläre Hände über dem Limit werden gekappt. Halbes Limit als Wert
+für BMJA-Optionen.
+
+### 3.4 Zahlungsabwicklung
+1. Jeder Spieler berechnet seine Hand: Punkte summieren, dann 2^Verdopplungen, dann
+   auf Limit kappen.
+2. Gewinner erhält von jedem der drei anderen seinen Handwert. Selbstzug: jeder zahlt
+   den vollen Betrag. Abwurf: Vorbelegung ebenfalls alle drei (Millington);
+   Option "Abwerfender zahlt für alle".
+3. Verlierer begleichen die Differenz ihrer Handwerte paarweise untereinander
+   (Millington, Pomax "losers pay each other").
+4. Ost zahlt und erhält doppelt, in jeder Transaktion, an der Ost beteiligt ist.
+5. Ergebnis: 4×4-Zahlungsmatrix; Summe aller Transaktionen ist null (Invariante für
+   Tests).
+6. Optionale Strafen (DMJL): falsche Ansage Chow −50, Pung/Kong −100, falsches
+   Mahjong −300. Vorbelegung aus.
 
 ### 3.5 Ausgabe
-- `ScoreSheet` mit Zeilen (Beschreibung, Punkte / Verdopplung, Quelle) für jeden
-  Spieler, Zwischensumme, Verdopplungen, Endsumme, Zahlungsmatrix.
-- Diese Zeilen sind auch die Grundlage für die Erklärungen im UI und im Lexikon.
+- `ScoreSheet` je Spieler: Zeilen `{id, label, points | doubles | limit, tiles}`,
+  Punkte-Zwischensumme, Verdopplungen, gekappter Endwert, Zahlungsmatrix.
+- Labels kommen aus dem Lexikon-Katalog (Abschnitt 9), keine doppelte Textpflege.
 
 ### 3.6 Modultrennung
 - Regel-Kern kennt nur "Hand ist gültig". Punkte kommen ausschließlich aus diesem Modul.
-- Schnittstelle so gestaltet, dass ein Riichi- oder HK-Scoring dieselbe Signatur
-  bedienen kann.
+- Vorbild: Pomax/mahjong (`ruleset.js` als Basisklasse, je Regelwerk eine Datei) und
+  Kajongg (Regeln als Datentabelle). Wir kombinieren beides: Datentabelle für Werte,
+  kleine Prädikatsfunktionen für die Erkennung.
+- Referenztests: je Zeile der Tabellen mindestens eine Beispielhand; zusätzlich die
+  Unit-Tests aus Pomax `chinese-classical.js` als Gegenprobe (Abweichung Mahjong 10 vs.
+  20 Punkte beachten).
+
 
 ---
 
 ## 4. Analyse-Engine (Shanten / Ukeire)
 
-Der technische Kern für Berater, KI und Post-Game-Analyse.
+Der technische Kern für Berater, KI und Post-Game-Analyse. Eigene Implementierung,
+Handformat und Algorithmusstruktur nach mahjong-tile-efficiency (MIT), Ergebnisse
+gegen MahjongRepository/mahjong (Python) getestet. Siehe RESEARCH.md.
 
-### 4.1 Shanten-Berechnung
-- **Standardform:** klassischer Algorithmus (Sätze, Teilsätze, Paar) mit Beachtung
-  bereits offener Sätze. Shanten = minimale Zahl an Steinwechseln bis zur Tenpai-Hand.
-- **Thirteen Orphans:** eigene Formel (13 − einzigartige Endsteine/Honours − Paarbonus).
-- **Seven Pairs:** eigene Formel (nur, wenn im Regelwerk aktiv).
-- **Weitere Sonderhände:** Nine Gates, All Honours, Big Winds/Dragons als eigene
-  Distanzfunktionen, da sie sich stark von der Standardform unterscheiden.
-- Ergebnis: Shanten-Wert je Handform, Minimum als Gesamt-Shanten.
+### 4.1 Handformat
+- Zähl-Matrix `counts[4][9]`: Bambus, Kreise, Zeichen je 9, Honours 7 (E S W N Rd Gd Wd),
+  Werte 0–4. Offene Sätze getrennt als Liste, Bonussteine getrennt.
+- Alle Analysefunktionen arbeiten nur auf dieser Matrix plus einer "sichtbar"-Matrix
+  (eigene Hand + alle Abwürfe + alle offenen Sätze), aus der die Restverfügbarkeit
+  `remaining[tile] = 4 − visible[tile]` folgt.
 
-### 4.2 Ukeire (akzeptierte Steine)
-- Für jeden möglichen Abwurf: Menge der Steine, die den Shanten senken, gewichtet mit
-  der Anzahl noch verfügbarer Kopien (sichtbare Steine: eigene Hand, alle Abwürfe,
-  offene Sätze werden abgezogen).
-- Auch für Calls: "Welche Abwürfe der anderen könnte ich rufen?"
+### 4.2 Shanten-Berechnung
+- **Standardform:** Farbweise Zerlegung. Für jede Farbe wird vorab eine Tabelle
+  berechnet: für jede Zählkombination (0–4 je Rang, nur Summen ≤ 14) die besten
+  Werte (Sätze, Teilsätze, Paar vorhanden). Handshanten = Kombination der vier
+  Farbtabellen mit der Formel `8 − 2·Sätze − Teilsätze − Paar` (angepasst um die Zahl
+  offener Sätze). Tabelle beim Start einmal gebaut (wenige ms) oder als JSON gebündelt.
+- **Thirteen Orphans:** `13 − (Anzahl verschiedener Endsteine/Honours) − (1 wenn davon
+  ein Paar)`.
+- **Seven Pairs** (nur wenn aktiv): `6 − Paare` (+ Korrektur bei zu wenigen
+  verschiedenen Steinen).
+- **Weitere Zielformen** als Distanzfunktionen: Nine Gates (Abstand zur Muster-Zählung
+  3111111113 einer Farbe), All Honours, Big Four Winds, Big Three Dragons, Heads and
+  Tails, All Green, Full/Half Flush (Standardform mit Farbfilter), All Pungs
+  (Standardform ohne Chows, eigene Tabelle).
+- Ergebnis: `{ form: shanten }` für jede Form, Gesamt-Shanten = Minimum.
 
-### 4.3 Wertbewertung (Chinese-Classical-spezifisch)
-- Da Chows nichts zählen, muss die Bewertung Punktepotenzial einbeziehen: Erwarteter
-  Wert = Wahrscheinlichkeit × erwartete Punkte der Zielform.
-- Bewertung berücksichtigt: Pung- vs. Chow-Wege, Honours-Paare, Farbreinheit,
-  Verdopplungspotenzial, Nähe zu Limit-Händen.
-- Ausgabe pro Abwurf: Shanten danach, Ukeire-Anzahl, geschätzter Handwert, Gesamtscore.
+### 4.3 Ukeire (akzeptierte Steine)
+- Für Hand mit 3n+1 Steinen: Menge der Steine, die den Shanten senken, gewichtet mit
+  `remaining[tile]`. Für 3n+2: pro Abwurfkandidat die Ukeire der Resthand.
+- Kandidaten-Filter: nur Abwürfe prüfen, die den Shanten nicht erhöhen
+  ("normalDiscard"), plus optional die, die ihn um 1 erhöhen ("receding"), falls das
+  den Wert stark hebt.
+- Call-Ukeire: aus den Abwürfen der anderen, welche Steine ließen sich als Pung/Chow
+  (Chow nur vom linken Nachbarn) rufen und senken den Shanten.
 
-### 4.4 Gefahrenbewertung (Defensive)
-- Ohne Furiten gibt es kein sicheres "Suji"; stattdessen: Anzahl sichtbarer Kopien,
-  Steine, die ein Gegner mit offenen Sätzen wahrscheinlich braucht (z. B. offene Pungs
-  einer Farbe → Farbrein-Gefahr), Honours-Gefahr, späte Spielphase.
-- Ergebnis: Gefahrenwert 0–1 pro Stein und Gegner.
+### 4.4 Wertbewertung (Chinese-Classical-spezifisch)
+- Da Chows nichts zählen, bewertet die Engine jeden Abwurf nach erwartetem Wert:
+  `EV = Σ_form P(form erreichen) × Punkte(form)`, Punkte über das Scoring-Modul mit
+  einer "wahrscheinlichen Endhand" (Sätze wie bisher, fehlende Sätze als Pung oder
+  Chow je nach Teilsatz).
+- Gewichtungen (justierbare Konstanten wie bei AlphaJong): Pung- vs. Chow-Weg,
+  Honours-Paar-Bonus, Farbreinheit, Verdopplungspotenzial, verdeckte Hand erhalten.
+- Ausgabe pro Abwurf: Shanten danach, Ukeire (Anzahl Steine, gewichtet), EV,
+  Gefahrenwert, Gesamtscore.
 
-### 4.5 Wahrscheinlichkeiten (Poker-Stil)
-- **Erfolgswahrscheinlichkeit der eigenen Hand:** Chance, die Hand vor Ende der Wand
-  fertigzustellen, gegeben Shanten, Ukeire, verbleibende Wandsteine und Zugzahl.
-  Berechnung in zwei Stufen:
-  - Schnell (jeder Zug, < 20 ms): analytische Näherung über Ziehwahrscheinlichkeiten
-    der nützlichen Steine je verbleibendem Zug (hypergeometrisch, kettenweise über
-    Shanten-Stufen).
-  - Genau (auf Anfrage oder im Worker): Monte-Carlo-Simulation mit zufälligen
-    Restwänden (z. B. 2000 Durchläufe) unter Beibehaltung der sichtbaren Steine.
-- **Gewinnwahrscheinlichkeit gegen die Gegner:** Erfolgswahrscheinlichkeit verrechnet
-  mit einer Schätzung des Gegner-Tempos (offene Sätze, Abwurfmuster, Spielphase),
-  angezeigt als "Gewinnchance ca. 34 %" wie ein Poker-Equity-Wert.
-- **Handform-Wahrscheinlichkeiten:** Für jede erreichbare Handform (Standardhand
-  mit Verdopplungen wie All Pungs, Half Flush, Full Flush, verdeckte Hand; Limit-Hände
-  wie Thirteen Orphans, All Honours, Big Three Dragons; Optionen wie Seven Pairs) die
-  Wahrscheinlichkeit, sie noch zu erreichen, sowie ihr Punktwert und der erwartete
-  Wert (Wahrscheinlichkeit × Punkte). Ausgabe sortiert nach erwartetem Wert.
-- Alle Wahrscheinlichkeiten hängen vom gewählten Abwurf ab; das Modul liefert sie pro
-  Abwurfkandidat, damit der Berater "wenn du X wirfst, sinkt Full Flush auf 8 %" sagen
-  kann.
+### 4.5 Gefahrenbewertung (Defensive)
+- Ohne Furiten gibt es kein "sicheres Suji". Faktoren je Stein und Gegner:
+  Restverfügbarkeit (Stein 3× sichtbar → fast sicher), Übereinstimmung mit den offenen
+  Sätzen des Gegners (Farbe bei Half/Full-Flush-Verdacht, Honours bei
+  Honours-Sammlern), Spielphase (Anteil der Wand verbraucht), Anzahl der Abwürfe
+  des Gegners in dieser Farbe (viele Abwürfe einer Farbe → Gegner braucht sie nicht).
+- Ergebnis: Gefahrenwert 0–1 pro Stein, kombiniert über Gegner gewichtet nach deren
+  geschätztem Tempo.
 
-### 4.6 Leistung
-- Tabellenbasierte Vorberechnung für Farbmuster (0–9 Steine je Farbe) zur Beschleunigung.
-- Ziel: vollständige Bewertung aller Abwürfe einer Hand unter 20 ms auf einem
-  Mittelklasse-Handy, damit KI und Berater nicht spürbar verzögern.
-- Optional Web Worker für Post-Game-Analyse ganzer Partien.
+### 4.6 Wahrscheinlichkeiten (Poker-Stil)
+- **Fertigstellungschance (schnell, jeder Zug):** Kettenmodell über Shanten-Stufen.
+  Mit `u_k` = gewichtete Ukeire auf Stufe k, `R` = Reststeine in der Wand und `T` =
+  verbleibende eigene Züge: Wahrscheinlichkeit, in T Zügen alle Stufen zu durchlaufen,
+  hypergeometrisch je Stufe, dynamisch programmiert über (Stufe, Zug). Laufzeit
+  vernachlässigbar.
+- **Fertigstellungschance (genau, Worker):** Monte-Carlo nach Mizukami/Tsuruoka:
+  N Restwände zufällig aus den unsichtbaren Steinen ziehen, eigene Züge greedy nach
+  Ukeire spielen, Gegner mit einfachem Modell (Abwürfe zufällig aus unsichtbaren
+  Steinen, Gewinn mit stufenabhängiger Rate). N = 2000 als Vorbelegung, Ergebnis mit
+  Konfidenzintervall.
+- **Gewinnchance gegen die Gegner:** `P(win) ≈ P(fertig bis Zug t) × Π_gegner
+  (1 − P(gegner fertig bis t))`, Gegner-Tempo geschätzt aus offenen Sätzen, Zahl der
+  Abwürfe und Spielphase (Tabelle aus KI-gegen-KI-Simulationen kalibriert).
+- **Handform-Wahrscheinlichkeiten:** pro Zielform dieselbe Kettenrechnung mit deren
+  Shanten und Ukeire; Ausgabe `P`, Punkte, `EV = P × Punkte`, sortiert nach EV.
+- Alle Werte pro Abwurfkandidat, damit der Berater "wenn du X wirfst, sinkt Full
+  Flush auf 8 %" sagen kann.
 
----
+### 4.7 Leistung
+- Zielwerte: Standard-Shanten < 0,1 ms, vollständige Bewertung aller Abwürfe einer
+  Hand inkl. Schnellrechnung < 20 ms auf einem Mittelklasse-Handy.
+- Monte-Carlo und Post-Game-Analyse in einem Web Worker, Fortschrittsanzeige.
+- Benchmark-Datei wie bei mahjong-tile-efficiency (`benchmark.js`) im Repo.
 
 ## 5. KI-Gegner
 
@@ -281,7 +371,8 @@ Der technische Kern für Berater, KI und Post-Game-Analyse.
 - CSS Grid + Flexbox, Breakpoints, `touch-action`, große Trefferflächen (min. 44 px).
 
 ### 6.2 Steine
-- SVG-Steinset (eigene Zeichnungen oder freie Lizenz), skalierbar, Dark/Light.
+- SVG-Steinset FluffyStuff/riichi-mahjong-tiles (CC0), Variante "Regular"; Blumen,
+  Jahreszeiten und Rückseite im gleichen Stil ergänzen. Skalierbar, Dark/Light.
 - Zustände: normal, ausgewählt, empfohlen (Berater), gefährlich (Berater), verdeckt.
 
 ### 6.3 Interaktionen
@@ -408,8 +499,11 @@ Der technische Kern für Berater, KI und Post-Game-Analyse.
 
 ### 10.2 Tests
 - Unit-Tests für: Steinlogik, Hand-Zerleger, Sonderhand-Erkenner, alle Scoring-Zeilen
-  (mit Beispielhänden aus Millington als Referenz), Shanten-Werte bekannter Hände,
+  (mit Beispielhänden aus Millington als Referenz, Gegenprobe mit Pomax-Tests),
+  Shanten-Werte bekannter Hände (Gegenprobe mit MahjongRepository/mahjong),
   Call-Prioritäten, Undo-Konsistenz, Determinismus (gleicher Seed → gleiches Log).
+- "Nani Kiru?"-Tests für Berater und KI: Hand + sichtbare Steine + erwarteter Abwurf
+  (Format wie bei AlphaJong), als JSON-Dateien unter `/tests/nanikiru/`.
 - Eigenschaftstests: zufällige Partien mit KI gegen KI, Prüfung auf Invarianten
   (136 Steine gesamt, keine ungültigen Aktionen, Punktesumme konstant).
 - Testrunner: Node-eigener Runner (`node --test`) oder Vitest; keine Browser-Abhängigkeit
@@ -484,7 +578,7 @@ Diese Punkte sind mit Standardwerten vorbelegt und lassen sich später umstellen
 
 | Thema | Vorbelegung | Alternative |
 |---|---|---|
-| Limit | 1000 | 500 |
+| Limit | 500 (Millington-Standardtisch, Kajongg) | 1000 (BMJA, Pomax) |
 | Blumen/Jahreszeiten | aus | an |
 | Seven Pairs | aus (nicht Millington) | an als Option |
 | Ost bleibt bei Unentschieden | ja | nein |
@@ -492,4 +586,6 @@ Diese Punkte sind mit Standardwerten vorbelegt und lassen sich später umstellen
 | Startpunkte | 2000 | frei |
 | Spiellänge | 4 Runden | 1 Runde |
 | Steingrafiken | eigenes SVG-Set | freies Set unter offener Lizenz |
+| Kong-Box (tote Wand) | 14 Steine | 16 (Kajongg) |
+| Verlierer-Verdopplungen | nur Satz-basiert | auch Handform (DMJL) |
 | Build | ohne Build-Schritt | Vite |
