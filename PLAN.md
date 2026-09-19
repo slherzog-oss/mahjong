@@ -211,7 +211,28 @@ Der technische Kern für Berater, KI und Post-Game-Analyse.
   einer Farbe → Farbrein-Gefahr), Honours-Gefahr, späte Spielphase.
 - Ergebnis: Gefahrenwert 0–1 pro Stein und Gegner.
 
-### 4.5 Leistung
+### 4.5 Wahrscheinlichkeiten (Poker-Stil)
+- **Erfolgswahrscheinlichkeit der eigenen Hand:** Chance, die Hand vor Ende der Wand
+  fertigzustellen, gegeben Shanten, Ukeire, verbleibende Wandsteine und Zugzahl.
+  Berechnung in zwei Stufen:
+  - Schnell (jeder Zug, < 20 ms): analytische Näherung über Ziehwahrscheinlichkeiten
+    der nützlichen Steine je verbleibendem Zug (hypergeometrisch, kettenweise über
+    Shanten-Stufen).
+  - Genau (auf Anfrage oder im Worker): Monte-Carlo-Simulation mit zufälligen
+    Restwänden (z. B. 2000 Durchläufe) unter Beibehaltung der sichtbaren Steine.
+- **Gewinnwahrscheinlichkeit gegen die Gegner:** Erfolgswahrscheinlichkeit verrechnet
+  mit einer Schätzung des Gegner-Tempos (offene Sätze, Abwurfmuster, Spielphase),
+  angezeigt als "Gewinnchance ca. 34 %" wie ein Poker-Equity-Wert.
+- **Handform-Wahrscheinlichkeiten:** Für jede erreichbare Handform (Standardhand
+  mit Verdopplungen wie All Pungs, Half Flush, Full Flush, verdeckte Hand; Limit-Hände
+  wie Thirteen Orphans, All Honours, Big Three Dragons; Optionen wie Seven Pairs) die
+  Wahrscheinlichkeit, sie noch zu erreichen, sowie ihr Punktwert und der erwartete
+  Wert (Wahrscheinlichkeit × Punkte). Ausgabe sortiert nach erwartetem Wert.
+- Alle Wahrscheinlichkeiten hängen vom gewählten Abwurf ab; das Modul liefert sie pro
+  Abwurfkandidat, damit der Berater "wenn du X wirfst, sinkt Full Flush auf 8 %" sagen
+  kann.
+
+### 4.6 Leistung
 - Tabellenbasierte Vorberechnung für Farbmuster (0–9 Steine je Farbe) zur Beschleunigung.
 - Ziel: vollständige Bewertung aller Abwürfe einer Hand unter 20 ms auf einem
   Mittelklasse-Handy, damit KI und Berater nicht spürbar verzögern.
@@ -318,7 +339,31 @@ Der technische Kern für Berater, KI und Post-Game-Analyse.
   Shanten-Gewinn).
 - Hinweis auf Sonderhand-Nähe: "Du bist 3 Steine von Thirteen Orphans entfernt".
 
-### 8.3 Darstellung
+### 8.3 Wahrscheinlichkeitsanzeige (immer sichtbar, Einstellung)
+- Kopfzeile über der Hand: **Fertigstellungschance** und **Gewinnchance** in Prozent,
+  aktualisiert nach jedem Zug (Schnellrechnung), mit Trend-Pfeil zum Vorzug.
+- Panel "Mögliche Blätter": Liste der erreichbaren Handformen mit Prozent, Punktwert
+  und erwartetem Wert, Balkenanzeige. Beispiel:
+  - Standardhand (All Pungs) 41 % · 2 Verdopplungen
+  - Half Flush 18 % · 1 Verdopplung
+  - Full Flush 6 % · 3 Verdopplungen
+  - Thirteen Orphans 0,4 % · Limit
+- Antippen einer Zeile zeigt, welche Steine dafür zu halten und welche zu werfen sind.
+
+### 8.4 Spielziel wählen ("Ich versuche X zu spielen")
+- Aus dem Panel "Mögliche Blätter" lässt sich eine Handform als **Ziel** festlegen.
+- Wirkung:
+  - Berater bewertet Abwürfe und Calls dann nach dieser Zielform (Shanten und Ukeire
+    für genau diese Form, nicht mehr nach bestem erwarteten Wert insgesamt).
+  - Steine in der Hand werden markiert: "für das Ziel behalten" / "entbehrlich".
+  - Die Zielzeile bleibt oben, mit laufender Prozentanzeige; fällt sie unter eine
+    Schwelle oder wird sie unmöglich (nötige Steine vollständig sichtbar), warnt der
+    Berater und schlägt die beste Alternative vor.
+  - Ziel jederzeit änderbar oder aufhebbar ("frei spielen").
+- Das Ziel wird im Protokoll gespeichert, damit die Post-Game-Analyse unterscheiden
+  kann zwischen "Fehler gegenüber dem eigenen Ziel" und "Ziel war objektiv schlecht".
+
+### 8.5 Darstellung
 - Markierung der Steine in der Hand (grün empfohlen, rot gefährlich), Detailpanel
   ausklappbar.
 - Berater-Nutzung wird im Log vermerkt (für Post-Game-Statistik).
@@ -351,6 +396,10 @@ Der technische Kern für Berater, KI und Post-Game-Analyse.
 - Replay einer Partie aus Seed + Log, Zug für Zug, vor/zurück, Sprung zu Fehlern.
 - Für jeden eigenen Entscheidungspunkt: tatsächliche Wahl vs. beste Wahl der
   Analyse-Engine (Schwer-Stufe), Bewertungsdifferenz.
+- Verlaufskurve der Fertigstellungs- und Gewinnchance über die ganze Hand (wie die
+  Bewertungskurve bei Schach), mit Markierung der Züge, an denen sie einbrach.
+- Bewertung des gewählten Spielziels: War es zum Zeitpunkt der Wahl die beste Option,
+  wann hätte man umschwenken sollen.
 - Fehlerklassen: kleine Ungenauigkeit / Fehler / grober Fehler (Schwellen an
   Bewertungsdifferenz), farbliche Markierung in einer Zugleiste wie bei Schach-Engines.
 - Zusammenfassung: Genauigkeit in Prozent, Anzahl Fehler je Klasse, häufigste
@@ -401,19 +450,23 @@ PLAN.md
 2. GameState, Aktionen, Phasen-Automat, `getLegalActions`, Protokoll.
 3. Hand-Zerleger und Sonderhand-Erkenner (Millington-Standardliste).
 4. Scoring nach Millington inkl. Verlierer-Wertung, Ost doppelt, Limit; Referenztests.
-5. Shanten/Ukeire für Standardform + Thirteen Orphans (Minimalversion).
+5. Shanten/Ukeire für Standardform + Thirteen Orphans (Minimalversion),
+   Fertigstellungschance als Schnellrechnung.
 6. KI "Mittel" als einzige Stufe.
 7. UI: Tisch, Hand, Calls, Rundenende mit Punkteerklärung, Handy + Desktop.
 8. Store, Undo, Autosave.
-9. Einfacher Berater (bester Abwurf + ein Satz Begründung).
+9. Einfacher Berater (bester Abwurf + ein Satz Begründung), Prozentanzeige
+   Fertigstellungschance über der Hand.
 
 ### Stufe 2 — Schwierigkeitsgrade
 - Wertbewertung und Gefahrenbewertung ausbauen, Stufen Anfänger/Mittel/Schwer,
   Fehlerinjektion, KI-gegen-KI-Simulationen zur Kalibrierung.
 
-### Stufe 3 — Hand-Lexikon und Entwicklungshinweise
+### Stufe 3 — Hand-Lexikon, Wahrscheinlichkeiten und Spielziel
 - Katalog vervollständigen (alle Millington-Hände + Optionen), Lexikon-Screen,
-  "Wohin entwickelt sich meine Hand", Übungshände.
+  Übungshände.
+- Handform-Wahrscheinlichkeiten, Gewinnchance gegen Gegner, Monte-Carlo im Worker.
+- Panel "Mögliche Blätter" und wählbares Spielziel mit zielgerichtetem Berater.
 
 ### Stufe 4 — Post-Game-Analyse
 - Replay-Ansicht, Fehlerklassifikation, Zusammenfassung, Archiv, Export/Import,
