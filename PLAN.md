@@ -4,8 +4,9 @@
 ("The Complete Book of Mah-Jongg"). Japanese Riichi und Hong Kong folgen später als
 austauschbare Regelmodule.
 
-**Technik:** Reines HTML/CSS/JavaScript (ES-Module), lauffähig ohne Server direkt im
-Browser, responsiv für Handy und Desktop. Keine Frameworks für die Kernlogik.
+**Technik:** Reines HTML/CSS/JavaScript (ES-Module), responsiv für Handy und Desktop,
+von Anfang an als **Progressive Web App (PWA)** angelegt: installierbar auf dem
+Homescreen, offline voll spielbar, alle Daten lokal. Keine Frameworks für die Kernlogik.
 
 ---
 
@@ -21,8 +22,9 @@ Browser, responsiv für Handy und Desktop. Keine Frameworks für die Kernlogik.
 8. Live-Berater
 9. Hand-Lexikon und Lernhilfe
 10. Post-Game-Analyse, Tests und Projekt-Infrastruktur
-11. Baustufen und Reihenfolge
-12. Offene Entscheidungen
+11. PWA: Installation, Offline, Updates
+12. Baustufen und Reihenfolge
+13. Offene Entscheidungen
 
 ---
 
@@ -410,9 +412,17 @@ gegen MahjongRepository/mahjong (Python) getestet. Siehe RESEARCH.md.
   sei denn Einstellung "KI neu würfeln" ist aktiv.
 
 ### 7.3 Persistenz
-- Laufendes Spiel automatisch in `localStorage` (Seed + Log + Regelwerk reicht).
-- Abgeschlossene Partien im Archiv (IndexedDB, wenn Größe wächst) für Analyse.
-- Export/Import als JSON-Datei.
+- Alles lokal im Browser, kein Server, kein Konto. Grundlage für den Offline-Betrieb
+  als PWA (Abschnitt 11).
+- Laufendes Spiel nach jeder Aktion speichern (Seed + Log + Regelwerk + Spielziel
+  reicht zur Wiederherstellung). Kleine Daten in `localStorage`, Partien-Archiv und
+  Analysen von Anfang an in **IndexedDB** (kleiner Wrapper, keine Bibliothek).
+- Wiederaufnahme nach App-Neustart: Startbildschirm bietet "Fortsetzen" an, Zustand
+  wird aus dem Log rekonstruiert (Determinismus, Abschnitt 2.5).
+- Speicherschutz: `navigator.storage.persist()` anfordern, damit das System die Daten
+  nicht bei Platzmangel löscht; Belegung im Einstellungs-Screen anzeigen.
+- Export/Import als JSON-Datei (Web Share API auf dem Handy, Download auf dem Desktop),
+  damit Partien zwischen Geräten wandern können. Kein Cloud-Sync in den ersten Stufen.
 
 ---
 
@@ -524,12 +534,14 @@ gegen MahjongRepository/mahjong (Python) getestet. Siehe RESEARCH.md.
   /i18n      de.json, en.json
 /tests
 /docs        Regelreferenz, Scoring-Tabelle, Architektur
+/icons       App-Icons (192, 512, maskable), Apple-Touch-Icon
 index.html
+manifest.webmanifest
+sw.js        Service Worker (siehe Abschnitt 11)
 PLAN.md
 ```
 - ES-Module ohne Build-Schritt für den Start; Vite optional später für Bundling und
   Dev-Server. Deployment als statische Seite (GitHub Pages).
-- PWA-Manifest und Service Worker für Offline-Nutzung auf dem Handy (nach Stufe 1).
 
 ### 10.4 Qualität
 - ESLint + Prettier, CI-Workflow (Tests + Lint) auf GitHub Actions.
@@ -537,7 +549,78 @@ PLAN.md
 
 ---
 
-## 11. Baustufen und Reihenfolge
+## 11. PWA: Installation, Offline, Updates
+
+Die App bleibt eine statische Website; die PWA-Schicht kommt ohne Framework und ohne
+Build-Schritt aus. Alle Spielfunktionen laufen offline, weil nichts einen Server braucht.
+
+### 11.1 Manifest
+- `manifest.webmanifest` mit Name, Kurzname, `start_url` (`./?source=pwa`),
+  `display: standalone`, `orientation: any` (Spieltisch funktioniert in beiden Lagen),
+  Farben für Theme und Hintergrund, Icons 192 und 512 px plus `maskable`-Variante,
+  Screenshots für den Install-Dialog auf Android/Desktop.
+- Shortcuts im Manifest: "Neues Spiel", "Fortsetzen", "Lexikon".
+- iOS-Besonderheiten: `apple-touch-icon`, `apple-mobile-web-app-capable`,
+  Statusleisten-Farbe, Splash über Theme-Farbe. Installation auf iOS nur über
+  "Zum Home-Bildschirm" in Safari; die App zeigt dafür einen kurzen Hinweis.
+
+### 11.2 Service Worker
+- Strategie **Precache + Cache First** für alle App-Dateien (HTML, CSS, JS, SVG-Steine,
+  Lexikon-JSON, Fonts). Die Dateiliste wird beim Installieren vollständig geladen, danach
+  ist die App ohne Netz nutzbar.
+- Versionierung über eine Cache-Kennung (`mahjong-v12`); beim Aktivieren einer neuen
+  Version werden alte Caches gelöscht.
+- Kein Netzwerk zur Laufzeit nötig, daher keine Runtime-Caching-Regeln für externe
+  Ressourcen. Alles wird lokal ausgeliefert, keine CDN-Abhängigkeit.
+- Ohne Bundler wird die Precache-Liste aus einem kleinen Skript generiert
+  (`scripts/build-sw-manifest.js`), das die Dateien unter `/src` und `/icons` mit
+  Hash aufzählt. Später bei Vite: `vite-plugin-pwa` als Ersatz.
+
+### 11.3 Update-Fluss
+- Service Worker prüft beim Start auf eine neue Version. Liegt eine vor, wird sie im
+  Hintergrund geladen; die App zeigt einen unaufdringlichen Hinweis "Update bereit,
+  neu laden". Kein erzwungener Reload mitten in einer Hand.
+- Beim Neuladen bleibt das laufende Spiel erhalten (Persistenz aus 7.3), auch wenn sich
+  das Datenformat ändert: Log-Format bekommt eine Versionsnummer und Migrationen.
+- Versionsanzeige und "Auf Updates prüfen" im Einstellungs-Screen.
+
+### 11.4 Installations-Erlebnis
+- `beforeinstallprompt` abfangen und einen eigenen "Installieren"-Knopf nach der ersten
+  abgeschlossenen Hand anbieten, nicht sofort beim ersten Besuch.
+- Erkennung, ob die App installiert läuft (`display-mode: standalone`), um Browser-Chrome
+  bezogene Hinweise auszublenden.
+
+### 11.5 Mobile Verhalten in der installierten App
+- Safe-Area-Ränder (`env(safe-area-inset-*)`) für Notch und Home-Indikator.
+- `viewport-fit=cover`, kein Pinch-Zoom auf dem Spieltisch, Doppeltipp-Zoom aus.
+- Wake Lock API während einer laufenden Hand, damit der Bildschirm nicht ausgeht.
+- Vibrations-Feedback bei Call-Angeboten (abschaltbar), Systemschrift für schnelle
+  Darstellung, Dark Mode nach Systemeinstellung.
+- Speicher- und Akku-Rücksicht: Monte-Carlo im Worker mit begrenzter Laufzeit, keine
+  Berechnung im Hintergrund, wenn die App nicht sichtbar ist (`visibilitychange`).
+
+### 11.6 Hosting und Auslieferung
+- PWA setzt HTTPS voraus. GitHub Pages erfüllt das ohne Kosten; alternativ jeder
+  statische Host (Netlify, Cloudflare Pages).
+- Deployment per GitHub Actions: Tests laufen, dann Precache-Liste generieren, dann
+  auf den `gh-pages`-Branch veröffentlichen.
+- Relative Pfade überall, damit die App unter einem Unterpfad (`/mahjong/`) läuft.
+
+### 11.7 Tests für die PWA-Schicht
+- Lighthouse-PWA-Prüfung in CI (Installierbarkeit, Offline-Start, Manifest).
+- Playwright-Test: Seite laden, Netzwerk abschalten, neu laden, Spiel starten.
+- Manuelle Checkliste je Release: Android Chrome, iOS Safari, Desktop Chrome/Edge.
+
+### 11.8 Später möglich (nicht in den ersten Stufen)
+- Store-Verpackung ohne Neuentwicklung: Android über Trusted Web Activity (PWABuilder),
+  iOS über einen minimalen Wrapper. Die Web-App bleibt die eine Codebasis.
+- Optionaler Cloud-Sync der Partien über ein eigenes Konto, Push-Erinnerungen.
+- Web Share Target, um exportierte Partien anderer Spieler direkt in die App zu
+  übernehmen.
+
+---
+
+## 12. Baustufen und Reihenfolge
 
 ### Stufe 1 — Chinese Classical komplett spielbar
 1. Projektgerüst, Steine, Wand, Zufall mit Seed, Tests.
@@ -548,13 +631,17 @@ PLAN.md
    Fertigstellungschance als Schnellrechnung.
 6. KI "Mittel" als einzige Stufe.
 7. UI: Tisch, Hand, Calls, Rundenende mit Punkteerklärung, Handy + Desktop.
-8. Store, Undo, Autosave.
+8. Store, Undo, Autosave in IndexedDB, Fortsetzen nach Neustart.
 9. Einfacher Berater (bester Abwurf + ein Satz Begründung), Prozentanzeige
    Fertigstellungschance über der Hand.
+10. PWA-Grundausstattung: Manifest, Icons, Service Worker mit Precache, Offline-Start,
+    Update-Hinweis, Deployment auf GitHub Pages. Ab hier ist die App installierbar.
 
-### Stufe 2 — Schwierigkeitsgrade
+### Stufe 2 — Schwierigkeitsgrade und mobile Feinschliff
 - Wertbewertung und Gefahrenbewertung ausbauen, Stufen Anfänger/Mittel/Schwer,
   Fehlerinjektion, KI-gegen-KI-Simulationen zur Kalibrierung.
+- PWA-Feinschliff: Safe Areas, Wake Lock, Install-Knopf, Lighthouse in CI,
+  Export/Import per Web Share.
 
 ### Stufe 3 — Hand-Lexikon, Wahrscheinlichkeiten und Spielziel
 - Katalog vervollständigen (alle Millington-Hände + Optionen), Lexikon-Screen,
@@ -572,7 +659,7 @@ PLAN.md
 
 ---
 
-## 12. Offene Entscheidungen
+## 13. Offene Entscheidungen
 
 Diese Punkte sind mit Standardwerten vorbelegt und lassen sich später umstellen:
 
@@ -588,4 +675,6 @@ Diese Punkte sind mit Standardwerten vorbelegt und lassen sich später umstellen
 | Steingrafiken | eigenes SVG-Set | freies Set unter offener Lizenz |
 | Kong-Box (tote Wand) | 14 Steine | 16 (Kajongg) |
 | Verlierer-Verdopplungen | nur Satz-basiert | auch Handform (DMJL) |
-| Build | ohne Build-Schritt | Vite |
+| Build | ohne Build-Schritt, Precache-Liste per Skript | Vite mit vite-plugin-pwa |
+| Hosting | GitHub Pages | Netlify / Cloudflare Pages |
+| Store-Verpackung | keine | TWA (Android), Wrapper (iOS) später |
