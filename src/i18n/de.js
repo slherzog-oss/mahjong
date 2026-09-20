@@ -1,7 +1,6 @@
 // Texte der Oberfläche (Deutsch). Englisch folgt als en.js mit gleichen Schlüsseln.
 export const de = {
   appName: 'Mahjong',
-  subtitle: 'Chinese Classical nach Millington',
   newGame: 'Neues Spiel',
   resume: 'Fortsetzen',
   settings: 'Einstellungen',

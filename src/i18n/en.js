@@ -1,7 +1,6 @@
 // English strings (same keys as de.js).
 export const en = {
   appName: 'Mahjong',
-  subtitle: 'Chinese Classical after Millington',
   newGame: 'New game',
   resume: 'Resume',
   settings: 'Settings',

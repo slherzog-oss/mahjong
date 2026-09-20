@@ -1,12 +1,15 @@
 # Mahjong
 
-Chinese Classical Mahjong (nach A. D. Millington) als Progressive Web App.
-Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
+Mahjong als Progressive Web App: Chinese Classical (nach A. D. Millington),
+Hong Kong Old Style und Riichi auf einem gemeinsamen Regelkern. Reines
+HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 
 ## Funktionen
 
-- Spiel gegen drei KI-Gegner in drei Stufen, vollständiges Regelwerk nach Millington
-  mit Voreinstellungen (Millington, BMJA, DMJL) und allen Regeloptionen
+- Spiel gegen drei KI-Gegner in drei Stufen; Regelwerke Chinese Classical
+  (Voreinstellungen Millington, BMJA mit Sonderhänden, DMJL mit Strafen),
+  Hong Kong Old Style (Fan, Mindest-Fan, Zahlungsschemata) und Riichi (Riichi,
+  Furiten, Yaku, Dora, Honba) mit allen Regeloptionen
 - Live-Berater mit Begründung, Fertigstellungs- und Gewinnchance (Monte-Carlo),
   Panel "Mögliche Blätter" mit wählbarem Spielziel
 - Hand-Lexikon mit Beispielen, Tipps und Übungshänden; Einführung und Lernmodus
@@ -19,7 +22,7 @@ Stand der Umsetzung: `docs/STATUS.md`.
 - `PLAN.md` — ausführlicher Projektplan
 - `RESEARCH.md` — Recherche zu bestehenden Open-Source-Projekten
 - `src/core` — Regel-Kern (Steine, Wand, Zustand, Aktionen, Hand-Validierung), siehe `docs/ENGINE.md`
-- `src/scoring` — Scoring nach Millington mit Zahlungsmatrix, siehe `docs/SCORING.md`
+- `src/scoring` — Scoring nach Millington, Hong Kong (Fan) und Riichi (Yaku/Han/Fu) mit Zahlungsmatrix, siehe `docs/SCORING.md`
 - `src/analysis` — Shanten, Ukeire, Fertigstellungschance, siehe `docs/ANALYSIS.md`
 - `src/ai` — KI-Gegner (easy/medium/hard) und Zug-Schleife, siehe `docs/AI.md`
 - `src/ui`, `src/store` — Oberfläche, Store mit Undo und Autosave, siehe `docs/UI.md`
