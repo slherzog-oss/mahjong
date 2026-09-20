@@ -24,6 +24,7 @@ export function renderStart(snap) {
       <button class="btn primary" data-action="new-game">${t('newGame')}</button>
       ${snap.hasSave ? `<button class="btn" data-action="resume">${t('resume')}</button>` : ''}
       <button class="btn" data-action="lexicon">${t('lexicon')}</button>
+      <button class="btn" data-action="practice-list">${t('practiceTitle')}</button>
       <button class="btn" data-action="analysis-list">${t('analysis')}</button>
       <div class="row">
         <button class="btn small" data-action="import">${t('importGame')}</button>
@@ -193,7 +194,10 @@ export function renderGame(snap, ui) {
     <header class="topbar">
       <button class="btn small" data-action="quit">${t('back')}</button>
       <span class="info">${t('round')} ${t('windShort')[state.roundWind]} · ${t('hand')} ${state.handNumber} · ${t('wall')} ${state.wall.living.length}</span>
-      <button class="btn small" data-action="undo" ${snap.canUndo ? '' : 'disabled'}>${t('undo')}</button>
+      <span class="topbar-right">
+        <button class="btn small" data-action="lexicon" title="${t('lexicon')}" aria-label="${t('lexicon')}">?</button>
+        <button class="btn small" data-action="undo" ${snap.canUndo ? '' : 'disabled'}>${t('undo')}</button>
+      </span>
     </header>
     <div class="table">
       <div class="opponents">${others.map((p) => opponentHtml(state, p, humanSeat, ui)).join('')}</div>

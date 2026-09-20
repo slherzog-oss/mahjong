@@ -196,6 +196,7 @@ root.addEventListener('click', (ev) => {
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
       case 'lexicon': ui.screen = 'lexicon'; render(snap); break;
+      case 'practice-list': ui.screen = 'lexicon'; ui.lexicon.category = 'limit'; ui.lexicon.query = ''; render(snap); break;
       case 'tutorial-start': ui.tutorial = 0; render(snap); break;
       case 'tutorial-next': ui.tutorial = (ui.tutorial ?? 0) + 1; render(snap); break;
       case 'tutorial-skip': case 'tutorial-done': ui.tutorial = -1; store.updateSettings({ tutorialDone: true }); break;
