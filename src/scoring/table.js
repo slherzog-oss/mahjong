@@ -63,6 +63,11 @@ export const SCORE_RULES = Object.freeze({
   lim_scratching_pole: { kind: 'limit', scope: 'winner', value: 1, de: 'Tragestange kratzen', en: 'Scratching a Carrying Pole' },
   lim_twofold_fortune: { kind: 'limit', scope: 'winner', value: 1, de: 'Doppeltes Glück', en: 'Twofold Fortune' },
   lim_seven_pairs: { kind: 'limit', scope: 'winner', value: 1, de: 'Sieben Paare', en: 'Seven Pairs' },
+  // BMJA-Sonderhände (Option optionalHands)
+  lim_wriggling_snake: { kind: 'limit', scope: 'winner', value: 1, de: 'Sich windende Schlange', en: 'Wriggling Snake' },
+  lim_knitting: { kind: 'limit', scope: 'winner', value: 1, de: 'Strickmuster', en: 'Knitting' },
+  lim_triple_knitting: { kind: 'limit', scope: 'winner', value: 1, de: 'Dreifaches Strickmuster', en: 'Triple Knitting' },
+  lim_all_pair_honours: { kind: 'limit', scope: 'winner', value: 1, de: 'Sieben Paare aus Endsteinen und Honours', en: 'All Pair Honours' },
 });
 
 export function ruleLabel(id, lang = 'de') {

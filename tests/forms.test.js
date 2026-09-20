@@ -123,3 +123,32 @@ test('setTarget wird protokolliert', () => {
   s = applyAction(s, { type: 'setTarget', seat: 0, form: null });
   assert.equal(s.players[0].target, null);
 });
+
+test('BMJA-Sonderformen: Distanz, Ukeire und Shanten-Integration', async () => {
+  const { shanten } = await import('../src/analysis/shanten.js');
+  const opt = createRuleSet({ optionalHands: true });
+  const done = {
+    wriggling_snake: '11b 23456789b ESWN',
+    knitting: '1234567b 1234567c',
+    triple_knitting: '13579b 13579c 1357k',
+    all_pair_honours: '11b 99b 11c 99k EE SS rr',
+  };
+  for (const [form, n] of Object.entries(done)) {
+    assert.equal(d(form, n, [], opt), -1, form);
+    assert.equal(d(form, n, [], rules), Infinity, `${form} ohne Option`);
+    assert.equal(shanten(parseKinds(n), 0, opt).min, -1, form);
+  }
+  // Ein Stein entfernt: Distanz 0 und genau die fehlende Art ist nützlich
+  const near = d('wriggling_snake', '11b 23456789b ESW', [], opt);
+  assert.equal(near, 0);
+  const u = formUkeire('wriggling_snake', parseKinds('11b 23456789b ESW'), [], opt, new Array(34).fill(4));
+  assert.deepEqual(u.tiles.map((x) => x.kind), parseKinds('N'));
+  assert.equal(d('knitting', '123456b 123456c 9k', [], opt), 1);
+  assert.equal(d('triple_knitting', '1357b 1357c 1357k 9b', [], opt), 0); // wartet auf 9c/9k
+  assert.equal(d('triple_knitting', '1357b 1357c 135k 9b 2k', [], opt), 1);
+  assert.equal(d('all_pair_honours', '11b 99b 11c 99k EE SS r', [], opt), 0);
+  // Mit offenem Satz unmöglich
+  assert.equal(d('knitting', '123456b 12345c', [meld('pung', 'EEE')], opt), Infinity);
+  // shanten() nennt die beste Sonderform
+  assert.equal(shanten(parseKinds('11b 23456789b ESW'), 0, opt).form, 'wriggling_snake');
+});

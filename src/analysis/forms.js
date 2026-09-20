@@ -6,7 +6,7 @@ import {
   suitOf, countsFromKinds,
 } from '../core/tiles.js';
 import { seatWind } from '../core/state.js';
-import { shantenStandard, shantenOrphans, shantenSevenPairs } from './shanten.js';
+import { shantenStandard, shantenOrphans, shantenSevenPairs, OPTIONAL_SHANTEN } from './shanten.js';
 import { visibleCounts, remainingCounts } from './ukeire.js';
 import { completionChance, drawsLeftFor } from './probability.js';
 
@@ -30,6 +30,10 @@ export const FORMS = [
   { id: 'nine_gates', lexicon: 'lim_nine_gates', value: (rs) => rs.limit },
   { id: 'thirteen_orphans', lexicon: 'lim_thirteen_orphans', value: (rs) => rs.limit },
   { id: 'seven_pairs', lexicon: 'lim_seven_pairs', value: (rs) => rs.limit, option: 'sevenPairs' },
+  { id: 'wriggling_snake', lexicon: 'lim_wriggling_snake', value: (rs) => rs.limit, option: 'optionalHands' },
+  { id: 'knitting', lexicon: 'lim_knitting', value: (rs) => rs.limit, option: 'optionalHands' },
+  { id: 'triple_knitting', lexicon: 'lim_triple_knitting', value: (rs) => rs.limit, option: 'optionalHands' },
+  { id: 'all_pair_honours', lexicon: 'lim_all_pair_honours', value: (rs) => rs.limit, option: 'optionalHands' },
 ];
 
 export const FORM_IDS = FORMS.map((f) => f.id);
@@ -138,6 +142,8 @@ export function formDistance(formId, kinds, melds, rs) {
     case 'nine_gates': return shantenNineGates(counts, melds);
     case 'thirteen_orphans': return shantenOrphans(counts, mc);
     case 'seven_pairs': return rs.sevenPairs ? shantenSevenPairs(counts, mc) : Infinity;
+    case 'wriggling_snake': case 'knitting': case 'triple_knitting': case 'all_pair_honours':
+      return rs.optionalHands ? OPTIONAL_SHANTEN[formId](counts, mc) : Infinity;
     default: return Infinity;
   }
 }

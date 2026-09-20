@@ -134,7 +134,7 @@ function advise() {
     const adv = adviseDiscard(state, humanSeat, { target: state.players[humanSeat].target ?? null });
     ui.advice = {
       kind: adv.best.kind,
-      dangerKinds: adv.options.filter((o) => o.danger > 0.6 && adv.progress > 0.4).map((o) => o.kind),
+      dangerKinds: adv.options.filter((o) => o.penalty || (o.danger > 0.6 && adv.progress > 0.4)).map((o) => o.kind),
       lines: explainDiscard(adv),
       hints: explainHints(adv.hints),
       alternatives: adv.alternatives,

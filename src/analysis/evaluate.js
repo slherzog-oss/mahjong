@@ -5,6 +5,7 @@ import { seatWind } from '../core/state.js';
 import { discardOptions, visibleCounts, remainingCounts } from './ukeire.js';
 import { completionChance, drawsLeftFor } from './probability.js';
 import { dangerOf } from './danger.js';
+import { dangerousKindsInHand } from '../core/dangerous.js';
 
 export const EVAL_DEFAULTS = {
   valueWeight: 0.08, // je erwartete Verdopplung
@@ -65,18 +66,23 @@ export function evaluateDiscards(state, seat, weights = EVAL_DEFAULTS) {
   const drawsLeft = drawsLeftFor(state.wall.living.length);
   const progress = progressOf(state);
   const counts = countsFromKinds(kinds);
+  // DMJL "Gefährliches Spiel": solche Abwürfe kosten die Zahlung für alle, außer die ganze Hand ist gefährlich
+  const penal = rs.penalties ? dangerousKindsInHand(state, seat) : new Set();
+  const forced = penal.size > 0 && penal.size === new Set(kinds).size;
 
   const options = discardOptions(kinds, melds.length, rs, remaining).map((o) => {
     const rest = kinds.slice();
     rest.splice(rest.indexOf(o.kind), 1);
     const potential = valuePotential(rest, melds, seatW, state.roundWind);
-    const danger = dangerOf(state, seat, o.kind, remaining);
+    const penalty = penal.has(o.kind) && !forced;
+    const danger = penalty ? 1 : dangerOf(state, seat, o.kind, remaining);
     const chance = completionChance({ shanten: o.shanten, ukeireTotal: o.total, unseen, drawsLeft });
     return {
       ...o,
       danger,
       potential,
       chance,
+      penalty,
       breaksPair: counts[o.kind] === 2,
       breaksPung: counts[o.kind] >= 3,
       visibleCopies: visible[o.kind],
@@ -89,7 +95,8 @@ export function evaluateDiscards(state, seat, weights = EVAL_DEFAULTS) {
       + weights.valueWeight * o.potential.doubles
       + (o.potential.flush ? weights.flushWeight : 0)
       + weights.honourPairBonus * o.potential.honourSets
-      - weights.dangerWeight * progress * o.danger;
+      - weights.dangerWeight * progress * o.danger
+      - (o.penalty ? 1.5 : 0);
   }
   options.sort((a, b) => a.shanten - b.shanten || b.score - a.score);
   return { options, progress, remaining, unseen };

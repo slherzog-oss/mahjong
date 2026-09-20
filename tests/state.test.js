@@ -277,3 +277,77 @@ test('Replay aus Seed und Aktionsliste reproduziert den Zustand', () => {
   assert.deepEqual(r.log, s.log);
   assert.equal(r.phase, s.phase);
 });
+
+test('Twofold Fortune: Gewinn mit dem Ersatzstein des zweiten Kongs in Folge', async () => {
+  const { scoreRound } = await import('../src/scoring/millington.js');
+  let s = rigGame({ hands: ['5555b 6666b 123c EE 9k', null, null, null] });
+  s = structuredClone(s);
+  // Zwei 9k an den Anfang der Kong-Box legen
+  const nine = parseKinds('9k')[0];
+  const pool = [...s.wall.living, ...s.wall.dead];
+  const nines = pool.filter((id) => kindOf(id) === nine).slice(0, 2);
+  const rest = pool.filter((id) => !nines.includes(id));
+  s.wall = { living: rest.slice(0, rest.length - 12), dead: [...nines, ...rest.slice(rest.length - 12)] };
+  s = applyAction(s, getLegalActions(s, 0).find((a) => a.type === 'kong' && a.kind === parseKinds('5b')[0]));
+  assert.equal(s.replacementChain, 1);
+  s = applyAction(s, getLegalActions(s, 0).find((a) => a.type === 'kong' && a.kind === parseKinds('6b')[0]));
+  assert.equal(s.replacementChain, 2);
+  const mj = getLegalActions(s, 0).find((a) => a.type === 'mahjong');
+  assert.ok(mj);
+  s = applyAction(s, mj);
+  assert.equal(s.result.twofoldFortune, true);
+  assert.equal(s.result.kongReplacement, true);
+  const { sheets } = scoreRound(s);
+  assert.ok(sheets[0].lines.some((l) => l.id === 'lim_twofold_fortune'));
+  assert.equal(sheets[0].total, s.ruleSet.limit);
+  // Nach einem Abwurf beginnt die Kette neu
+  let s2 = rigGame({ hands: ['5555b 123c 456c EE 9k 8k', null, null, null] });
+  s2 = applyAction(s2, getLegalActions(s2, 0).find((a) => a.type === 'kong'));
+  assert.equal(s2.replacementChain, 1);
+  s2 = applyAction(s2, getLegalActions(s2, 0).find((a) => a.type === 'discard'));
+  assert.equal(s2.replacementChain, 0);
+});
+
+test('Gefährliches Spiel (DMJL): drei offene Sätze einer Farbe, Abwurf dieser Farbe gibt Mahjong', async () => {
+  const { scoreRound } = await import('../src/scoring/millington.js');
+  const { dangerousFor } = await import('../src/core/dangerous.js');
+  const build = (hand0) => {
+    let s = rigGame({ hands: [hand0, '111b 222b 333b 45b EE', null, null], ruleSet: createRuleSet({ penalties: true }) });
+    s = structuredClone(s);
+    const p = s.players[1];
+    for (const k of parseKinds('123b')) {
+      const tiles = p.hand.filter((id) => kindOf(id) === k);
+      p.hand = p.hand.filter((id) => kindOf(id) !== k);
+      p.melds.push({ type: 'pung', tiles, kinds: tiles.map(kindOf), open: true, from: 2 });
+    }
+    assert.equal(p.hand.length, 4);
+    return s;
+  };
+  let s = build('6b 123c 456c 789c 99k SS');
+  assert.deepEqual(dangerousFor(s, 0, parseKinds('6b')[0]), [1]);
+  assert.deepEqual(dangerousFor(s, 0, parseKinds('9k')[0]), []);
+  s = applyAction(s, { type: 'discard', seat: 0, tile: tileOf(s, 0, '6b') });
+  assert.deepEqual(s.lastDiscard.dangerous, [1]);
+  assert.equal(s.lastDiscard.forced, false);
+  s = applyAction(s, { type: 'mahjong', seat: 1 });
+  s = applyAction(s, { type: 'pass', seat: 2 });
+  s = applyAction(s, { type: 'pass', seat: 3 });
+  assert.equal(s.result.dangerousGame, true);
+  assert.ok(s.log.some((e) => e.type === 'dangerous_game'));
+  const { payments } = scoreRound(s);
+  assert.ok(payments[0][1] > 0);
+  assert.equal(payments[2][1], 0);
+  assert.equal(payments[3][1], 0);
+  // Erzwungen: die ganze Hand besteht aus gefährlichen Steinen → keine Strafe
+  let f = build('6b 123b 456b 789b 99b SS');
+  f = applyAction(f, { type: 'discard', seat: 0, tile: tileOf(f, 0, '6b') });
+  assert.equal(f.lastDiscard.forced, true);
+  f = applyAction(f, { type: 'mahjong', seat: 1 });
+  f = applyAction(f, { type: 'pass', seat: 2 });
+  f = applyAction(f, { type: 'pass', seat: 3 });
+  assert.equal(f.result.dangerousGame, false);
+  // Ohne Option keine Markierung
+  let n = rigGame({ hands: ['6b 123c 456c 789c 99k SS', null, null, null] });
+  n = applyAction(n, { type: 'discard', seat: 0, tile: tileOf(n, 0, '6b') });
+  assert.deepEqual(n.lastDiscard.dangerous, []);
+});

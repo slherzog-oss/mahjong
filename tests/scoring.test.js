@@ -244,3 +244,25 @@ test('Irdische Hand: Gewinn auf Osts ersten Abwurf', () => {
   assert.equal(count(sheets[2], 'lim_earthly'), 1);
   assert.equal(sheets[2].total, rules.limit);
 });
+
+test('BMJA-Sonderhände zählen das Limit (Option optionalHands)', () => {
+  const opt = createRuleSet({ optionalHands: true, limit: 1000 });
+  const cases = [
+    ['11b 23456789b ESWN', 'N', 'lim_wriggling_snake'],
+    ['1234567b 1234567c', '7c', 'lim_knitting'],
+    ['13579b 13579c 1357k', '7k', 'lim_triple_knitting'],
+    ['11b 99b 11c 99k EE SS rr', 'r', 'lim_all_pair_honours'],
+  ];
+  for (const [n, win, id] of cases) {
+    const s = winner(n, { win, rules: opt, selfDraw: false });
+    assert.ok(ids(s).includes(id), id);
+    assert.equal(s.total, 1000, id);
+  }
+});
+
+test('Gefährliches Spiel (DMJL): Abwerfender zahlt für alle', () => {
+  const pay = settle([0, 100, 0, 0], { winner: 1, discarder: 3, dealer: 0, dangerousGame: true }, createRuleSet({ losersPayEachOther: false }));
+  assert.equal(pay[3][1], 300);
+  assert.equal(pay[0][1], 0);
+  assert.equal(pay[2][1], 0);
+});

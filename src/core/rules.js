@@ -4,6 +4,7 @@
 export const CHINESE_CLASSICAL = Object.freeze({
   id: 'chinese-classical-millington',
   name: 'Chinese Classical (Millington)',
+  variant: 'classical', // 'classical' | 'hongkong' | 'riichi' (Scoring-Modul und Sonderregeln)
 
   // Material und Ablauf
   bonusTiles: false, // Blumen und Jahreszeiten
@@ -18,6 +19,7 @@ export const CHINESE_CLASSICAL = Object.freeze({
   // Hände
   sevenPairs: false,
   robKongForThirteenOrphans: false, // verdeckten Kong für Thirteen Orphans rauben
+  optionalHands: false, // BMJA-Sonderhände: Wriggling Snake, Knitting, Triple Knitting, All Pair Honours
 
   // Scoring
   limit: 500, // Option 1000
@@ -26,7 +28,7 @@ export const CHINESE_CLASSICAL = Object.freeze({
   losersPayEachOther: true,
   eastDoubles: true,
   loserHandDoubles: false, // Handform-Verdopplungen auch für Verlierer (DMJL)
-  penalties: false, // DMJL-Strafen
+  penalties: false, // DMJL "Gefährliches Spiel": wer offensichtlich gefährlich abwirft, zahlt für alle
 });
 
 export function createRuleSet(overrides = {}) {

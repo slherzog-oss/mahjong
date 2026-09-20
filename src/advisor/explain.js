@@ -32,6 +32,8 @@ export function explainDiscard(advice) {
     }
   }
   if (progress > 0.7 && best.danger > 0.6) out.push(t('adv.lateDanger'));
+  const penal = advice.options.filter((o) => o.penalty);
+  if (penal.length) out.push(t('adv.dangerousGame', { tiles: penal.map((o) => KIND_NAMES[o.kind]).join(', ') }));
   return out;
 }
 

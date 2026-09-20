@@ -177,3 +177,28 @@ test('KI schummelt nicht: Entscheidungen hängen nicht von fremden Händen oder 
   assert.ok(checks > 100);
   assert.equal(mismatches, 0, `${mismatches} von ${checks} Entscheidungen hingen von verdeckter Information ab`);
 });
+
+test('DMJL-Strafen: KI und Berater meiden offensichtlich gefährliche Abwürfe', async () => {
+  const { adviseDiscard } = await import('../src/advisor/advisor.js');
+  const { explainDiscard } = await import('../src/advisor/explain.js');
+  let s = rigGame({ hands: ['6b 7b 123c 456c 789c 99k S', '111b 222b 333b 45b EE', null, null], ruleSet: createRuleSet({ penalties: true }) });
+  s = structuredClone(s);
+  const p = s.players[1];
+  for (const k of parseKinds('123b')) {
+    const tiles = p.hand.filter((id) => kindOf(id) === k);
+    p.hand = p.hand.filter((id) => kindOf(id) !== k);
+    p.melds.push({ type: 'pung', tiles, kinds: tiles.map(kindOf), open: true, from: 2 });
+  }
+  for (const d of ['easy', 'medium', 'hard']) {
+    for (let i = 0; i < 5; i++) {
+      const a = chooseAction(s, 0, { difficulty: d, rng: createRngState(`p-${d}-${i}`) });
+      assert.equal(a.type, 'discard');
+      assert.ok(!['6b', '7b'].includes(formatKinds([kindOf(a.tile)])), `${d}: ${formatKinds([kindOf(a.tile)])}`);
+    }
+  }
+  const adv = adviseDiscard(s, 0);
+  assert.ok(!['6b', '7b'].includes(formatKinds([adv.best.kind])));
+  // 6b, 7b und der Wind S sind gegenüber drei offenen Bambus-Sätzen gefährlich
+  assert.equal(adv.options.filter((o) => o.penalty).length, 3);
+  assert.ok(explainDiscard(adv).some((l) => l.includes('DMJL')));
+});

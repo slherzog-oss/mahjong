@@ -6,7 +6,7 @@
 // Je Farbe werden alle Zerlegungen in (Sätze, Teilsätze, Paar) aufgezählt und
 // über einen Cache wiederverwendet; die vier Gruppen werden dann kombiniert.
 
-import { NUM_KINDS, countsFromKinds } from '../core/tiles.js';
+import { NUM_KINDS, countsFromKinds, isMajor } from '../core/tiles.js';
 import { ORPHAN_KINDS } from '../core/hand.js';
 
 const suitCache = new Map();
@@ -140,8 +140,68 @@ export function shantenSevenPairs(counts, meldCount = 0) {
   return 6 - pairs + Math.max(0, 7 - unique);
 }
 
+// --- BMJA-Sonderhände (Option optionalHands): Distanz = 13 - vorhandene passende Steine ---
+
+/** Wriggling Snake: Paar 1 + 2..9 einer Farbe + je ein Wind. */
+export function shantenWrigglingSnake(counts, meldCount = 0) {
+  if (meldCount > 0) return Infinity;
+  let winds = 0;
+  for (let w = 27; w < 31; w++) winds += Math.min(1, counts[w]);
+  let best = Infinity;
+  for (let s = 0; s < 3; s++) {
+    let have = Math.min(2, counts[s * 9]);
+    for (let r = 1; r < 9; r++) have += Math.min(1, counts[s * 9 + r]);
+    best = Math.min(best, 13 - have - winds);
+  }
+  return best;
+}
+
+/** Knitting: sieben Zahlenpaare aus zwei Farben. */
+export function shantenKnitting(counts, meldCount = 0) {
+  if (meldCount > 0) return Infinity;
+  let best = Infinity;
+  for (const [a, b] of [[0, 1], [0, 2], [1, 2]]) {
+    const prog = [];
+    for (let r = 0; r < 9; r++) prog.push(Math.min(1, counts[a * 9 + r]) + Math.min(1, counts[b * 9 + r]));
+    prog.sort((x, y) => y - x);
+    const have = prog.slice(0, 7).reduce((x, y) => x + y, 0);
+    best = Math.min(best, 13 - have);
+  }
+  return best;
+}
+
+/** Triple Knitting: vier Zahlendrillinge aus drei Farben plus Zahlenpaar. */
+export function shantenTripleKnitting(counts, meldCount = 0) {
+  if (meldCount > 0) return Infinity;
+  const prog = [];
+  for (let r = 0; r < 9; r++) prog.push(Math.min(1, counts[r]) + Math.min(1, counts[9 + r]) + Math.min(1, counts[18 + r]));
+  let best = Infinity;
+  for (let rp = 0; rp < 9; rp++) {
+    const rest = prog.filter((_, i) => i !== rp).sort((x, y) => y - x);
+    const have = rest.slice(0, 4).reduce((x, y) => x + y, 0) + Math.min(2, prog[rp]);
+    best = Math.min(best, 13 - have);
+  }
+  return best;
+}
+
+/** All Pair Honours: sieben Paare aus Endsteinen und Honours. */
+export function shantenAllPairHonours(counts, meldCount = 0) {
+  if (meldCount > 0) return Infinity;
+  const p = [];
+  for (let k = 0; k < NUM_KINDS; k++) if (isMajor(k)) p.push(Math.min(2, counts[k]));
+  p.sort((x, y) => y - x);
+  return 13 - p.slice(0, 7).reduce((x, y) => x + y, 0);
+}
+
+export const OPTIONAL_SHANTEN = {
+  wriggling_snake: shantenWrigglingSnake,
+  knitting: shantenKnitting,
+  triple_knitting: shantenTripleKnitting,
+  all_pair_honours: shantenAllPairHonours,
+};
+
 /**
- * Shanten aller Formen. Liefert { standard, orphans, sevenPairs, min, form }.
+ * Shanten aller Formen. Liefert { standard, orphans, sevenPairs, optional, min, form }.
  * concealedKinds: Arten der verdeckten Hand (3n+1 oder 3n+2 Steine).
  */
 export function shanten(concealedKinds, meldCount = 0, ruleSet = null) {
@@ -154,5 +214,13 @@ export function shanten(concealedKinds, meldCount = 0, ruleSet = null) {
   let min = standard, form = 'standard';
   if (orphans < min) { min = orphans; form = 'thirteen_orphans'; }
   if (sevenPairs < min) { min = sevenPairs; form = 'seven_pairs'; }
-  return { standard, orphans, sevenPairs, min, form };
+  let optional = Infinity;
+  if (ruleSet?.optionalHands) {
+    for (const [id, fn] of Object.entries(OPTIONAL_SHANTEN)) {
+      const v = fn(counts, meldCount);
+      if (v < optional) optional = v;
+      if (v < min) { min = v; form = id; }
+    }
+  }
+  return { standard, orphans, sevenPairs, optional, min, form };
 }

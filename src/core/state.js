@@ -20,6 +20,7 @@ import { createRngState, shuffle } from './rng.js';
 import { buildWall, drawLiving, drawReplacement } from './wall.js';
 import { isWinningHand } from './hand.js';
 import { createRuleSet } from './rules.js';
+import { dangerousFor, dangerousKindsInHand } from './dangerous.js';
 
 export const PHASES = ['idle', 'draw', 'discard', 'claiming', 'handOver', 'gameOver'];
 
@@ -58,7 +59,8 @@ export function createGame({ seed = Date.now(), ruleSet = createRuleSet(), human
     current: 0,
     turn: 0, // Zähler der Abwürfe in dieser Hand
     lastDraw: null, // { seat, tile, replacement: boolean }
-    lastDiscard: null, // { seat, tile, claimed: boolean }
+    lastDiscard: null, // { seat, tile, claimed: boolean, dangerous?: seats, forced?: boolean }
+    replacementChain: 0, // aufeinanderfolgende Kong-Ersatzsteine ohne Abwurf dazwischen (Twofold Fortune)
     pendingKong: null, // { seat, kind, meldIndex } bei Ergänzungs-Kong (Raub möglich)
     claims: {}, // seat -> action während 'claiming'
     firstDiscardDone: false, // für Earthly Hand
@@ -256,6 +258,7 @@ export function applyAction(prev, action) {
         break;
       }
       state.lastDraw = { seat, tile: got.tile, replacement: got.replacement };
+      state.replacementChain = 0;
       logEvent(state, { type: 'draw', seat, tile: got.tile });
       state.phase = 'discard';
       break;
@@ -265,10 +268,13 @@ export function applyAction(prev, action) {
       requirePhase(state, 'discard', action);
       requireSeat(state, seat, state.current, action);
       const p = player(state, seat);
+      const dangerous = state.ruleSet.penalties ? dangerousFor(state, seat, kindOf(action.tile)) : [];
+      const forced = dangerous.length > 0 && dangerousKindsInHand(state, seat).size === new Set(p.hand.map(kindOf)).size;
       removeTileId(p.hand, action.tile);
       p.discards.push(action.tile);
-      state.lastDiscard = { seat, tile: action.tile, claimed: false };
+      state.lastDiscard = { seat, tile: action.tile, claimed: false, dangerous, forced };
       state.lastDraw = null;
+      state.replacementChain = 0;
       state.turn++;
       logEvent(state, { type: 'discard', seat, tile: action.tile });
       state.claims = {};
@@ -389,6 +395,7 @@ function startHand(state) {
   state.pendingKong = null;
   state.claims = {};
   state.firstDiscardDone = false;
+  state.replacementChain = 0;
   state.result = null;
   logEvent(state, { type: 'start_hand', dealer: state.dealer, roundWind: state.roundWind });
 
@@ -419,6 +426,7 @@ function kongReplacement(state, seat) {
     return;
   }
   state.lastDraw = { seat, tile: got.tile, replacement: true };
+  state.replacementChain++;
   logEvent(state, { type: 'draw', seat, tile: got.tile, replacement: true });
   state.current = seat;
   state.phase = 'discard';
@@ -510,6 +518,7 @@ function resolveClaims(state) {
       state.current = pk.seat;
       state.claims = {};
       state.lastDraw = null;
+      state.replacementChain = 0;
       state.phase = 'discard';
     } else {
       const tiles = [...removeKinds(p.hand, kind, 3), tile];
@@ -534,6 +543,7 @@ function resolveClaims(state) {
     state.current = ch.seat;
     state.claims = {};
     state.lastDraw = null;
+    state.replacementChain = 0;
     state.phase = 'discard';
     return;
   }
@@ -548,15 +558,23 @@ function resolveClaims(state) {
 function finishWin(state, info) {
   const heavenly = info.selfDraw && state.turn === 0 && info.winner === state.dealer;
   const earthly = !info.selfDraw && !state.firstDiscardDone && info.from === state.dealer && state.turn === 1;
+  // Twofold Fortune: Gewinn mit dem Ersatzstein des zweiten unmittelbar aufeinanderfolgenden Kongs
+  const twofoldFortune = !!info.kongReplacement && state.replacementChain >= 2;
+  // DMJL: Abwurf war offensichtlich gefährlich für den Gewinner (und nicht erzwungen)
+  const ld = state.lastDiscard;
+  const dangerousGame = !info.selfDraw && !info.robbedKong && !!ld && ld.tile === info.winningTile && !ld.forced && (ld.dangerous ?? []).includes(info.winner);
   state.result = {
     type: 'win',
     ...info,
     heavenly,
     earthly,
+    twofoldFortune,
+    dangerousGame,
     roundWind: state.roundWind,
     dealer: state.dealer,
   };
   logEvent(state, { type: 'mahjong', seat: info.winner, from: info.from, tile: info.winningTile });
+  if (dangerousGame) logEvent(state, { type: 'dangerous_game', seat: info.from, winner: info.winner, tile: info.winningTile });
   state.pendingKong = null;
   state.claims = {};
   state.phase = 'handOver';

@@ -14,6 +14,7 @@ import { discardOptions, visibleCounts, remainingCounts, ukeire2 } from '../anal
 import { evaluateDiscards } from '../analysis/evaluate.js';
 import { dangerOf } from '../analysis/danger.js';
 import { nextFloat, nextInt } from '../core/rng.js';
+import { dangerousKindsInHand } from '../core/dangerous.js';
 
 export { dangerOf };
 
@@ -115,8 +116,14 @@ function progress(state) {
 function easyDiscard(state, seat, legal, rng) {
   const kinds = handKinds(state, seat);
   const counts = countsFromKinds(kinds);
-  const singles = legal.filter((a) => a.type === 'discard' && counts[kindOf(a.tile)] === 1);
-  const pool = singles.length ? singles : legal.filter((a) => a.type === 'discard');
+  let discards = legal.filter((a) => a.type === 'discard');
+  if (state.ruleSet.penalties) {
+    const penal = dangerousKindsInHand(state, seat);
+    const safe = discards.filter((a) => !penal.has(kindOf(a.tile)));
+    if (safe.length) discards = safe;
+  }
+  const singles = discards.filter((a) => counts[kindOf(a.tile)] === 1);
+  const pool = singles.length ? singles : discards;
   return pool[nextInt(rng, pool.length)];
 }
 
@@ -169,7 +176,13 @@ function smartDiscard(state, seat, legal, rng, difficulty) {
     return discardActionFor(legal, pick.kind) ?? legal.find((a) => a.type === 'discard');
   }
 
-  const opts = discardOptions(kinds, melds, rs, remaining);
+  let opts = discardOptions(kinds, melds, rs, remaining);
+  if (rs.penalties) {
+    // DMJL: offensichtlich gefährliche Abwürfe meiden, solange es Alternativen gibt
+    const penal = dangerousKindsInHand(state, seat);
+    const safe = opts.filter((o) => !penal.has(o.kind));
+    if (safe.length) opts = safe;
+  }
   const best = opts[0];
   const prog = progress(state);
   const candidates = opts.filter((o) => o.shanten === best.shanten && o.total >= best.total * P.ukeireTolerance);

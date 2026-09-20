@@ -33,6 +33,7 @@ export const de = {
   yourDraw: 'Du bist am Zug: ziehe einen Stein.',
   waitFor: 'Wartet auf',
   drawGame: 'Unentschieden: die Wand ist leer.',
+  dangerousGame: 'Gefährliches Spiel: {name} hat offensichtlich riskant abgeworfen und zahlt für alle drei.',
   winBy: 'gewinnt',
   selfDraw: 'durch Selbstzug',
   fromDiscard: 'mit dem Abwurf von',
@@ -106,6 +107,7 @@ export const de = {
       all_pungs_concealed: 'Verborgener Schatz', full_flush_concealed: 'Verdeckte reine Farbe', all_honours: 'Nur Honours',
       terminals: 'Nur Endsteine', all_green: 'Kaiserliche Jade', nine_gates: 'Neun Tore', thirteen_orphans: 'Dreizehn Waisen',
       seven_pairs: 'Sieben Paare',
+      wriggling_snake: 'Sich windende Schlange', knitting: 'Strickmuster', triple_knitting: 'Dreifaches Strickmuster', all_pair_honours: 'Paare aus Endsteinen und Honours',
     },
   },
   analysis: 'Analyse',
@@ -145,6 +147,8 @@ export const de = {
     maxChows: 'Max. Chows',
     startScore: 'Startpunkte',
     robKongForThirteenOrphans: 'Verdeckten Kong für Dreizehn Waisen rauben',
+    optionalHands: 'BMJA-Sonderhände (Schlange, Strickmuster, Paare aus Endsteinen und Honours)',
+    penalties: 'Gefährliches Spiel (DMJL): wer offensichtlich riskant abwirft, zahlt für alle',
   },
   language: 'Sprache',
   playerNamesLabel: 'Namen der Gegner',
@@ -198,6 +202,7 @@ export const de = {
     hintHalfFlush: 'Eine Farbe mit Honours ({suit}): 1 Verdopplung.',
     hintFlushPossible: 'Die Hand tendiert zu {suit}; eine Farbe wäre möglich.',
     hintAllPungs: 'Viele Paare: Nur-Pungs-Hand (1 Verdopplung) ist in Reichweite.',
+    dangerousGame: 'Gefährliches Spiel (DMJL): {tiles} wären gegen eine offene Auslage riskant. Wer damit ein Mahjong ermöglicht, zahlt für alle drei.',
   },
 };
 

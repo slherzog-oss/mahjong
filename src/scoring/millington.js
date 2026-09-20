@@ -147,6 +147,9 @@ function scoreWinner(input, ruleSet) {
   if (ev.forms.includes('thirteen_orphans')) contextLimits.push(line('lim_thirteen_orphans'));
   if (ev.forms.includes('nine_gates')) contextLimits.push(line('lim_nine_gates'));
   if (ev.forms.includes('seven_pairs')) contextLimits.push(line('lim_seven_pairs'));
+  for (const f of ['wriggling_snake', 'knitting', 'triple_knitting', 'all_pair_honours']) {
+    if (ev.forms.includes(f)) contextLimits.push(line(`lim_${f}`));
+  }
 
   const candidates = [];
 
@@ -233,15 +236,17 @@ export function scoreHand(input, ruleSet) {
 
 /**
  * Zahlungsmatrix payments[from][to] aus den Handwerten.
- * values: number[4], winner: seat, discarder: seat|null, dealer: seat
+ * values: number[4], winner: seat, discarder: seat|null, dealer: seat,
+ * dangerousGame: Abwerfender zahlt wegen "Gefährlichem Spiel" (DMJL) für alle.
  */
-export function settle(values, { winner, discarder, dealer }, ruleSet) {
+export function settle(values, { winner, discarder, dealer, dangerousGame = false }, ruleSet) {
   const pay = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
   const factor = (a, b) => (ruleSet.eastDoubles && (a === dealer || b === dealer) ? 2 : 1);
+  const payAll = (ruleSet.discarderPaysAll || dangerousGame) && discarder !== null && discarder !== undefined;
 
   for (let s = 0; s < 4; s++) {
     if (s === winner) continue;
-    if (ruleSet.discarderPaysAll && discarder !== null) {
+    if (payAll) {
       if (s === discarder) pay[s][winner] += 3 * values[winner] * factor(s, winner);
     } else {
       pay[s][winner] += values[winner] * factor(s, winner);
@@ -304,6 +309,6 @@ export function scoreRound(state, ruleSet = state.ruleSet) {
     }
     return scoreHand(base, ruleSet);
   });
-  const payments = settle(sheets.map((s) => s.total), { winner: r.winner, discarder: r.from, dealer: state.dealer }, ruleSet);
+  const payments = settle(sheets.map((s) => s.total), { winner: r.winner, discarder: r.from, dealer: state.dealer, dangerousGame: !!r.dangerousGame }, ruleSet);
   return { sheets, payments, net: netFromPayments(payments) };
 }

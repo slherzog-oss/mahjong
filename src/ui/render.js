@@ -69,7 +69,7 @@ export function renderStart(snap) {
         <select data-rule="maxChows">${[1, 2, 4].map((r) => `<option value="${r}" ${s.rules.maxChows === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
       <label>${t('rule.startScore')}
         <select data-rule="startScore">${[1000, 2000, 5000].map((r) => `<option value="${r}" ${s.rules.startScore === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      ${['bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'discarderPaysAll', 'losersPayEachOther', 'eastDoubles', 'loserHandDoubles', 'refillDeadWall', 'robKongForThirteenOrphans']
+      ${['bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'discarderPaysAll', 'losersPayEachOther', 'eastDoubles', 'loserHandDoubles', 'refillDeadWall', 'robKongForThirteenOrphans', 'optionalHands', 'penalties']
         .map((k) => `<label><input type="checkbox" data-rule="${k}" ${s.rules[k] ? 'checked' : ''}> ${t('rule.' + k) !== 'rule.' + k ? t('rule.' + k) : t(k)}</label>`).join('')}
     </details>
     ${snap.pwa?.canInstall ? `<p><button class="btn" data-action="install">${t('install')}</button></p>` : ''}
@@ -297,6 +297,7 @@ export function renderHandOver(snap) {
     const w = playerName(state, r.winner, humanSeat);
     const how = r.selfDraw ? t('selfDraw') : `${t('fromDiscard')} ${playerName(state, r.from, humanSeat)}`;
     head = `<p><b>${esc(w)}</b> ${t('winBy')} ${esc(how)}.</p>`;
+    if (r.dangerousGame) head += `<p class="warn">${esc(t('dangerousGame', { name: playerName(state, r.from, humanSeat) }))}</p>`;
   }
   const sheets = lastScore?.sheets;
   const rows = state.players.map((p, i) => {

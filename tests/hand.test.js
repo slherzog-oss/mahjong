@@ -71,3 +71,27 @@ test('flushType', () => {
   assert.equal(flushType(parseKinds('EEE SSS WWW NNN rr')), 'honours');
   assert.equal(flushType(parseKinds('123b 456c EEE rr 11b')), null);
 });
+
+test('BMJA-Sonderhände nur mit Option optionalHands', () => {
+  const opt = createRuleSet({ optionalHands: true });
+  const cases = {
+    wriggling_snake: '11b 23456789b ESWN',
+    knitting: '1234567b 1234567c',
+    triple_knitting: '13579b 13579c 1357k',
+    all_pair_honours: '11b 99b 11c 99k EE SS rr',
+  };
+  for (const [form, n] of Object.entries(cases)) {
+    const hand = parseKinds(n);
+    assert.equal(hand.length, 14, form);
+    assert.ok(!isWinningHand(hand, [], rules), `${form} ohne Option`);
+    const ev = evaluateHand(hand, [], opt);
+    assert.ok(ev.forms.includes(form), `${form}: ${ev.forms}`);
+  }
+  // Gegenbeispiele
+  assert.ok(!evaluateHand(parseKinds('11b 23456789b ESWr'), [], opt).forms.includes('wriggling_snake'));
+  assert.ok(!evaluateHand(parseKinds('1234567b 123456c 7k'), [], opt).forms.includes('knitting'));
+  assert.ok(!evaluateHand(parseKinds('13579b 13579c 1358k'), [], opt).forms.includes('triple_knitting'));
+  assert.ok(!evaluateHand(parseKinds('11b 99b 11c 99k EE SS 55c'), [], opt).forms.includes('all_pair_honours'));
+  // Warten: Schlange wartet auf den fehlenden Wind
+  assert.deepEqual(waitingKinds(parseKinds('11b 23456789b ESW'), [], opt), parseKinds('N'));
+});

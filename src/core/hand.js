@@ -118,10 +118,78 @@ export function isNineGates(counts, melds) {
   return extra === 1;
 }
 
+// --- BMJA-Sonderhände (Option optionalHands), alle nur verdeckt ---
+
+/** Wriggling Snake: Paar 1 und je eine 2..9 einer Farbe, dazu je ein Wind. */
+export function isWrigglingSnake(counts, melds) {
+  if (melds.length > 0 || total(counts) !== 14) return false;
+  for (let w = 27; w < 31; w++) if (counts[w] !== 1) return false;
+  for (let k = 31; k < 34; k++) if (counts[k] !== 0) return false;
+  for (let s = 0; s < 3; s++) {
+    const base = s * 9;
+    if (counts[base] !== 2) continue;
+    let ok = true;
+    for (let r = 1; r < 9 && ok; r++) if (counts[base + r] !== 1) ok = false;
+    if (!ok) continue;
+    for (let k = 0; k < 27; k++) if (suitOf(k) !== s && counts[k] !== 0) return false;
+    return true;
+  }
+  return false;
+}
+
+/** Knitting: sieben Paare gleicher Zahl aus zwei festen Farben (je ein Stein pro Farbe), keine Honours. */
+export function isKnitting(counts, melds) {
+  if (melds.length > 0 || total(counts) !== 14) return false;
+  for (let k = 27; k < 34; k++) if (counts[k] !== 0) return false;
+  for (const [a, b] of [[0, 1], [0, 2], [1, 2]]) {
+    const c = 3 - a - b;
+    let pairs = 0, ok = true;
+    for (let r = 0; r < 9 && ok; r++) {
+      const ca = counts[a * 9 + r], cb = counts[b * 9 + r];
+      if (counts[c * 9 + r] !== 0) ok = false;
+      else if (ca === 1 && cb === 1) pairs++;
+      else if (ca !== 0 || cb !== 0) ok = false;
+    }
+    if (ok && pairs === 7) return true;
+  }
+  return false;
+}
+
+/** Triple Knitting: vier Drillinge gleicher Zahl aus allen drei Farben plus ein Paar gleicher Zahl aus zwei Farben. */
+export function isTripleKnitting(counts, melds) {
+  if (melds.length > 0 || total(counts) !== 14) return false;
+  for (let k = 27; k < 34; k++) if (counts[k] !== 0) return false;
+  let triplets = 0, pairs = 0;
+  for (let r = 0; r < 9; r++) {
+    const c = [counts[r], counts[9 + r], counts[18 + r]];
+    if (c.some((n) => n > 1)) return false;
+    const n = c[0] + c[1] + c[2];
+    if (n === 3) triplets++;
+    else if (n === 2) pairs++;
+    else if (n !== 0) return false;
+  }
+  return triplets === 4 && pairs === 1;
+}
+
+/** All Pair Honours: sieben verschiedene Paare aus Endsteinen und Honours. */
+export function isAllPairHonours(counts, melds) {
+  if (melds.length > 0 || total(counts) !== 14) return false;
+  let pairs = 0;
+  for (let k = 0; k < NUM_KINDS; k++) {
+    if (counts[k] === 0) continue;
+    if (counts[k] !== 2 || !isMajor(k)) return false;
+    pairs++;
+  }
+  return pairs === 7;
+}
+
+export const OPTIONAL_FORMS = ['wriggling_snake', 'knitting', 'triple_knitting', 'all_pair_honours'];
+
 /**
  * Prüft eine vollständige Hand (verdeckte Steine als Arten + Melds).
  * Liefert { win: boolean, forms: string[], decompositions } mit Formen
- * 'standard', 'thirteen_orphans', 'seven_pairs', 'nine_gates'.
+ * 'standard', 'thirteen_orphans', 'seven_pairs', 'nine_gates' und (Option
+ * optionalHands) 'wriggling_snake', 'knitting', 'triple_knitting', 'all_pair_honours'.
  */
 export function evaluateHand(concealedKinds, melds, ruleSet) {
   const counts = countsFromKinds(concealedKinds);
@@ -136,6 +204,12 @@ export function evaluateHand(concealedKinds, melds, ruleSet) {
   if (isThirteenOrphans(counts, melds)) forms.push('thirteen_orphans');
   if (isNineGates(counts, melds)) forms.push('nine_gates');
   if (ruleSet?.sevenPairs && isSevenPairs(counts, melds)) forms.push('seven_pairs');
+  if (ruleSet?.optionalHands) {
+    if (isWrigglingSnake(counts, melds)) forms.push('wriggling_snake');
+    if (isKnitting(counts, melds)) forms.push('knitting');
+    if (isTripleKnitting(counts, melds)) forms.push('triple_knitting');
+    if (isAllPairHonours(counts, melds)) forms.push('all_pair_honours');
+  }
 
   return { win: forms.length > 0, forms, decompositions };
 }
