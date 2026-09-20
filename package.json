@@ -1,0 +1,14 @@
+{
+  "name": "mahjong",
+  "version": "0.1.0",
+  "description": "Chinese Classical Mahjong (Millington) als Progressive Web App",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/**/*.test.js tests/*.test.js",
+    "test:watch": "node --test --watch tests/*.test.js",
+    "serve": "node scripts/serve.js"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}
