@@ -143,3 +143,37 @@ test('Mittel gewinnt deutlich öfter als Zufallsspieler', () => {
   // Fairer Anteil wäre 25 %; die KI soll klar darüber liegen.
   assert.ok(aiWins / wins > 0.45, `KI-Anteil an Gewinnen: ${aiWins}/${wins}`);
 });
+
+test('KI schummelt nicht: Entscheidungen hängen nicht von fremden Händen oder der Wand ab', () => {
+  const rng = createRngState('nocheat');
+  let mismatches = 0, checks = 0;
+  for (let g = 0; g < 6; g++) {
+    let s = createGame({ seed: `nc-${g}`, humanSeat: -1, ruleSet: createRuleSet({ rounds: 1 }) });
+    s = applyAction(s, { type: 'startHand' });
+    let guard = 0;
+    while (s.phase !== 'handOver' && ++guard < 400) {
+      for (const seat of seatsToAct(s)) {
+        const diff = ['easy', 'medium', 'hard'][(seat + g) % 3];
+        // Verdeckte Information permutieren: fremde Hände und Wand untereinander mischen
+        const alt = structuredClone(s);
+        const hidden = [];
+        for (const p of alt.players) if (p.seat !== seat) { hidden.push(...p.hand); p.hand = []; }
+        hidden.push(...alt.wall.living, ...alt.wall.dead);
+        const shuffled = hidden.slice().reverse();
+        for (const p of alt.players) if (p.seat !== seat) p.hand = shuffled.splice(0, s.players[p.seat].hand.length);
+        alt.wall.living = shuffled.splice(0, s.wall.living.length);
+        alt.wall.dead = shuffled;
+        const rngA = { ...rng }, rngB = { ...rng };
+        const a = chooseAction(s, seat, { difficulty: diff, rng: rngA });
+        const b = chooseAction(alt, seat, { difficulty: diff, rng: rngB });
+        checks++;
+        if (JSON.stringify({ ...a, tile: a.tile === undefined ? undefined : kindOf(a.tile) }) !== JSON.stringify({ ...b, tile: b.tile === undefined ? undefined : kindOf(b.tile) })) mismatches++;
+        s = applyAction(s, a);
+        nextInt(rng, 2);
+        if (s.phase === 'handOver') break;
+      }
+    }
+  }
+  assert.ok(checks > 100);
+  assert.equal(mismatches, 0, `${mismatches} von ${checks} Entscheidungen hingen von verdeckter Information ab`);
+});

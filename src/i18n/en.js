@@ -179,6 +179,7 @@ export const en = {
   language: 'Language',
   playerNamesLabel: 'Opponent names',
   aiDelay: 'AI speed',
+  aiFair: 'Fairness: the AI only sees what you see (own hand, discards, exposed sets, wall count). It never looks into other hands or the wall. Difficulty levels differ only in move selection.',
   aiDelays: { 0: 'instant', 250: 'fast', 450: 'normal', 900: 'slow' },
   animations: 'Animations',
   sounds: 'Sounds',

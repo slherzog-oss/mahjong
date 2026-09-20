@@ -149,6 +149,7 @@ export const de = {
   language: 'Sprache',
   playerNamesLabel: 'Namen der Gegner',
   aiDelay: 'KI-Tempo',
+  aiFair: 'Fairness: Die KI sieht nur, was du auch siehst (eigene Hand, Abwürfe, offene Sätze, Restwand). Sie schaut nie in fremde Hände oder die Wand. Schwierigkeitsstufen unterscheiden sich nur in der Zugwahl.',
   aiDelays: { 0: 'sofort', 250: 'schnell', 450: 'normal', 900: 'gemächlich' },
   animations: 'Animationen',
   sounds: 'Töne',

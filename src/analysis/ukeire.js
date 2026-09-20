@@ -71,3 +71,18 @@ export function discardOptions(concealedKinds, meldCount = 0, ruleSet = null, re
   out.sort((a, b) => a.shanten - b.shanten || b.total - a.total);
   return out;
 }
+
+/**
+ * Zweitordnungs-Ukeire für eine Hand mit 3n+1 Steinen: Summe über alle nützlichen
+ * Steine k (gewichtet mit Restverfügbarkeit) des besten Ukeire nach Aufnahme von k
+ * und bestem Abwurf. Maß für die Breite auf der nächsten Stufe.
+ */
+export function ukeire2(concealedKinds, meldCount = 0, ruleSet = null, remaining = null) {
+  const u = ukeire(concealedKinds, meldCount, ruleSet, remaining);
+  let total = 0;
+  for (const tile of u.tiles) {
+    const next = discardOptions([...concealedKinds, tile.kind], meldCount, ruleSet, remaining);
+    total += tile.count * (next[0]?.total ?? 0);
+  }
+  return { shanten: u.shanten, first: u.total, second: total };
+}

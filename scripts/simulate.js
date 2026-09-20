@@ -15,10 +15,11 @@ const net = [0, 0, 0, 0];
 const dealIn = [0, 0, 0, 0];
 let draws = 0;
 const t0 = performance.now();
+// Duplikat-Matches (wie Mortal): jede Wand wird viermal gespielt, die Stufen rotieren
+// über die Sitze, damit Glück beim Geben herausgerechnet wird.
 for (let g = 0; g < games; g++) {
-  let s = createGame({ seed: `sim-${g}`, humanSeat: -1, ruleSet: createRuleSet({ rounds: 1 }) });
+  let s = createGame({ seed: `sim-${Math.floor(g / 4)}`, humanSeat: -1, ruleSet: createRuleSet({ rounds: 1 }) });
   s = applyAction(s, { type: 'startHand' });
-  // Sitzrotation, damit jede Stufe gleich oft Ost ist
   const rot = g % 4;
   s = runUntilHuman(s, { difficulty: (seat) => levels[(seat + rot) % 4], rng });
   const r = scoreRound(s);

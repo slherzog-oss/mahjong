@@ -39,6 +39,7 @@ export function renderStart(snap) {
         <select data-setting="difficulty">
           ${['easy', 'medium', 'hard'].map((d) => `<option value="${d}" ${s.difficulty === d ? 'selected' : ''}>${t('difficulties.' + d)}</option>`).join('')}
         </select></label>
+      <p class="muted small">${t('aiFair')}</p>
       <label>${t('rounds')}
         <select data-setting="rounds">${[1, 2, 4].map((r) => `<option value="${r}" ${s.rounds === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
       <label>${t('aiDelay')}

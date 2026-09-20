@@ -10,7 +10,7 @@
 import { kindOf, countsFromKinds } from '../core/tiles.js';
 import { getLegalActions } from '../core/state.js';
 import { shanten } from '../analysis/shanten.js';
-import { discardOptions, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
+import { discardOptions, visibleCounts, remainingCounts, ukeire2 } from '../analysis/ukeire.js';
 import { evaluateDiscards } from '../analysis/evaluate.js';
 import { dangerOf } from '../analysis/danger.js';
 import { nextFloat, nextInt } from '../core/rng.js';
@@ -18,6 +18,34 @@ import { nextFloat, nextInt } from '../core/rng.js';
 export { dangerOf };
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'];
+
+/**
+ * Stärkeregelung nach dem Stockfish-Prinzip: nicht die Suche schwächen, sondern
+ * unter den besten Kandidaten mit zufälligem Bias wählen. `skill` 0..1:
+ * 1 = immer bester Zug, 0 = breite Streuung über die besten `topN` Kandidaten.
+ */
+export const SKILL = {
+  easy: { skill: 0.3, topN: 5 },
+  medium: { skill: 0.55, topN: 3 },
+  hard: { skill: 1.0, topN: 1 },
+};
+
+/** Wählt aus sortierten Kandidaten (bester zuerst) mit skill-abhängigem Zufallsbias. */
+export function pickWithSkill(candidates, skill, topN, rng) {
+  if (candidates.length <= 1 || skill >= 1 || topN <= 1) return candidates[0];
+  const n = Math.min(topN, candidates.length);
+  // Score-Abstand zum besten wird mit (1 - skill) skaliertem Rauschen überlagert
+  let best = candidates[0];
+  let bestValue = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const c = candidates[i];
+    const base = -(i / n); // Rangverlust
+    const noise = (1 - skill) * (nextFloat(rng) - 0.3);
+    const v = base + noise;
+    if (v > bestValue) { bestValue = v; best = c; }
+  }
+  return best;
+}
 
 /** Justierbare Konstanten (Vorbild AlphaJong). */
 export const AI_PARAMS = {
@@ -36,6 +64,8 @@ export const AI_PARAMS = {
     mistakeRate: 0,
     // Schwer bewertet Abwürfe über evaluateDiscards (Chance, Wert, Gefahr)
     evalWeights: { valueWeight: 0.08, flushWeight: 0.15, dangerWeight: 0.9, honourPairBonus: 0.03 },
+    lookahead: 3, // Zweitordnungs-Ukeire für die besten x Kandidaten (Shanten ≥ 1)
+    lookaheadWeight: 0.25,
   },
 };
 
@@ -117,7 +147,26 @@ function smartDiscard(state, seat, legal, rng, difficulty) {
 
   if (P.evalWeights) {
     const { options } = evaluateDiscards(state, seat, P.evalWeights);
-    return discardActionFor(legal, options[0].kind) ?? legal.find((a) => a.type === 'discard');
+    let pick = options[0];
+    if (P.lookahead > 1 && pick.shanten >= 1) {
+      // Unter gleich guten Kandidaten den mit der breitesten nächsten Stufe wählen
+      const top = options.filter((o) => o.shanten === pick.shanten).slice(0, P.lookahead);
+      if (top.length > 1) {
+        let best = null, bestScore = -Infinity;
+        const maxSecond = Math.max(1, ...top.map((o) => {
+          const rest = kinds.slice();
+          rest.splice(rest.indexOf(o.kind), 1);
+          o.second = ukeire2(rest, melds, rs, remaining).second;
+          return o.second;
+        }));
+        for (const o of top) {
+          const sc = o.score + P.lookaheadWeight * (o.second / maxSecond);
+          if (sc > bestScore) { bestScore = sc; best = o; }
+        }
+        pick = best;
+      }
+    }
+    return discardActionFor(legal, pick.kind) ?? legal.find((a) => a.type === 'discard');
   }
 
   const opts = discardOptions(kinds, melds, rs, remaining);
@@ -137,6 +186,11 @@ function smartDiscard(state, seat, legal, rng, difficulty) {
   }
   if (P.mistakeRate > 0 && opts.length > 1 && nextFloat(rng) < P.mistakeRate) {
     pick = opts[1];
+  }
+  const sk = SKILL[difficulty];
+  if (sk && sk.skill < 1) {
+    const ordered = [pick, ...opts.filter((o) => o.kind !== pick.kind)];
+    pick = pickWithSkill(ordered, sk.skill, sk.topN, rng);
   }
   return discardActionFor(legal, pick.kind) ?? legal.find((a) => a.type === 'discard');
 }
