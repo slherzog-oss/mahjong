@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Isolierter Honour vor Teilsatz abwerfen",
+    "hand": "123b 456c 789k EE 45k r",
+    "discard": "r"
+  },
+  {
+    "name": "Tenpai halten, überzähligen Stein werfen",
+    "hand": "123b 456c 789k EEE r 2b",
+    "discardOneOf": ["r", "2b"]
+  },
+  {
+    "name": "Isolierter Endstein statt Mittelstein",
+    "hand": "234b 456c 789k EE 45k 9c",
+    "discard": "9c"
+  },
+  {
+    "name": "Paar behalten, Einzelstein werfen",
+    "hand": "123b 456c 77k EE 45k 3c 9b",
+    "discardOneOf": ["9b", "3c"]
+  }
+]

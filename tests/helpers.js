@@ -28,12 +28,23 @@ export function rigGame({ hands, dealer = 0, current = 0, phase = 'discard', wal
     if (i < 0) throw new Error(`Keine Kopie mehr von Art ${kind}`);
     return pool.splice(i, 1)[0];
   };
+  const fillers = [];
   hands.forEach((notation, seat) => {
-    const kinds = parseKinds(notation);
     const expected = phase === 'discard' && seat === current ? 14 : 13;
+    if (notation === null || notation === undefined) {
+      fillers.push([seat, expected]);
+      return;
+    }
+    const kinds = parseKinds(notation);
     if (kinds.length !== expected) throw new Error(`Sitz ${seat}: ${kinds.length} Steine, erwartet ${expected}`);
     s.players[seat].hand = kinds.map(take);
   });
+  // Füllhände (null): beliebige Steine aus dem Restpool, gleichmäßig über alle Arten verteilt.
+  for (const [seat, n] of fillers) {
+    const hand = [];
+    for (let i = 0; i < n; i++) hand.push(pool.splice(Math.floor((pool.length * (i + 1)) / (n + 1)) - 1 - hand.length * 0, 1)[0]);
+    s.players[seat].hand = hand;
+  }
   const living = wall ? parseKinds(wall).map(take) : [];
   living.push(...pool);
   s.wall = { living, dead: living.splice(living.length - s.ruleSet.deadWallSize, s.ruleSet.deadWallSize) };
