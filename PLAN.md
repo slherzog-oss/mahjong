@@ -4,7 +4,7 @@
 ("The Complete Book of Mah-Jongg"). Japanese Riichi und Hong Kong folgen später als
 austauschbare Regelmodule.
 
-**Umsetzungsstand:** siehe `docs/STATUS.md` (Stufen 1 bis 4 umgesetzt, Stufe 5 offen).
+**Umsetzungsstand:** siehe `docs/STATUS.md` (Stufen 1 bis 5 umgesetzt: Chinese Classical, Hong Kong Old Style und Riichi).
 
 **Technik:** Reines HTML/CSS/JavaScript (ES-Module), responsiv für Handy und Desktop,
 von Anfang an als **Progressive Web App (PWA)** angelegt: installierbar auf dem

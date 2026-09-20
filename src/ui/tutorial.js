@@ -2,8 +2,10 @@
 // über die Einstellungen abrufbar.
 import { t } from '../i18n/index.js';
 
-export function renderTutorial(step) {
-  const steps = t('tut.steps');
+export function renderTutorial(step, variant = 'classical') {
+  const base = t('tut.steps');
+  const extra = variant !== 'classical' ? (t('tut.variantSteps')?.[variant] ?? []) : [];
+  const steps = variant === 'classical' ? base : [...base.slice(0, 5), ...extra];
   const s = steps[Math.min(step, steps.length - 1)];
   const last = step >= steps.length - 1;
   return `

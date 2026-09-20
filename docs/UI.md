@@ -32,6 +32,23 @@ letzte Abrechnungsergebnis; das UI abonniert über `subscribe(fn)`.
 - Beim ersten "Neues Spiel" fragt die App `navigator.storage.persist()` an,
   damit der Browser die Daten nicht bei Platzmangel räumt.
 
+## Varianten im UI
+
+- Regelwerk-Panel: Variante (`data-rule="variant"`, wechselt auf die
+  Voreinstellung der Variante), Voreinstellungen je Variante, Felder aus
+  `VARIANT_FIELDS` (`src/core/presets.js`).
+- Riichi: Knopf "Riichi" (mit gewähltem Stein direkt, sonst Riichi-Modus mit
+  markierten Steinen), Riichi-Abzeichen und gedrehter Riichi-Abwurf,
+  Furiten-Hinweis, Dora-Anzeiger, Honba und Stäbchen in der Kopfzeile, rote
+  Fünfer mit Punkt. Abrechnung mit Han/Fu, Yaku-Liste, Dora/Ura, Tenpai/Noten
+  bei Unentschieden.
+- Hong Kong: Abrechnung in Fan mit Grundwert.
+- Lexikon mit Variantenwahl (Chinese Classical, Hong Kong, Riichi) und
+  variantenspezifischen Kategorien; Übungshände wechseln bei Bedarf die Variante.
+- "Mögliche Blätter" nennt die Formen in der Sprache der Variante (Toitoi,
+  Honitsu, …) mit variantentypischen Werten.
+- Einführung mit Zusatzschritten je Variante.
+
 ## Rendering (`src/ui/render.js`)
 
 Reine Funktionen Zustand → HTML: Startbildschirm mit Einstellungen, Spieltisch,

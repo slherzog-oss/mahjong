@@ -90,6 +90,8 @@ export const LEXICON = [
 export const CATEGORIES = ['basics', 'points', 'double', 'limit', 'option'];
 
 import { SCORE_RULES } from '../scoring/table.js';
+import { HK_FANS } from '../scoring/hongkong.js';
+import { RIICHI_YAKU } from '../scoring/riichi.js';
 
 const GENERIC = {
   points: { de: 'Grundpunkte laut Millington-Tabelle. Zählt für Gewinner und Verlierer.', en: 'Base points per the Millington table. Counts for winners and losers.' },
@@ -97,8 +99,93 @@ const GENERIC = {
   limit: { de: 'Limit-Hand: zählt genau das Limit.', en: 'Limit hand: scores exactly the limit.' },
 };
 
+// --- Riichi: Grundlagen und Beispiele je Yaku ---
+export const RIICHI_BASICS = [
+  { id: 'ri_basics_riichi', category: 'basics', name: { de: 'Riichi ansagen', en: 'Declaring riichi' }, text: { de: 'Ist die verdeckte Hand wartend (Tenpai), kannst du beim Abwurf Riichi ansagen: 1000 Punkte kommen als Stäbchen auf den Tisch, die Hand ist ab jetzt festgelegt. Du wirfst nur noch gezogene Steine ab, rufst nichts mehr (ein verdecktes Kan mit dem gezogenen Stein ist erlaubt, wenn das Warten gleich bleibt). Riichi ist ein Yaku (1 Han), Doppel-Riichi beim ersten Abwurf ohne Rufe 2 Han, Ippatsu (Gewinn binnen eines Umlaufs) 1 Han; dazu zählen die Ura-Dora. Bedingungen: mindestens 1000 Punkte, mindestens 4 Steine in der Wand.', en: 'When your concealed hand is ready (tenpai) you may declare riichi with a discard: 1000 points go on the table as a stick and the hand is locked. From then on you discard only drawn tiles and make no calls (a concealed kan with the drawn tile is allowed if the wait stays the same). Riichi is a yaku (1 han), double riichi on the first uninterrupted discard 2 han, ippatsu (winning within one go-around) 1 han; ura dora count too. Requirements: at least 1000 points and at least 4 tiles in the wall.' }, example: null, tip: { de: 'Riichi lohnt fast immer: Es bringt Yaku, Ura-Dora und setzt die Gegner unter Druck. Zögere nur mit einer sehr wertvollen Hand, die auch verdeckt gewinnt (Damaten).', en: 'Riichi almost always pays: it brings a yaku, ura dora and pressures opponents. Hesitate only with a very valuable hand that wins without it (damaten).' }, rarity: 1, standard: true },
+  { id: 'ri_basics_yaku', category: 'basics', name: { de: 'Yaku-Pflicht und Rufe', en: 'Yaku requirement and calls' }, text: { de: 'Eine Hand darf nur gewinnen, wenn sie mindestens ein Yaku hat (Dora zählen nicht). Verdeckte Hände haben per Selbstzug immer Menzen Tsumo; per Ron brauchen sie Riichi, Pinfu, Tanyao, Yakuhai oder Ähnliches. Rufe (Chi, Pon, Kan) öffnen die Hand: Menzen-Yaku entfallen, viele Yaku verlieren 1 Han. Wer ruft, braucht einen Plan: Yakuhai-Pung, Tanyao (offen erlaubt: Kuitan), Honitsu, Toitoi.', en: 'A hand may only win with at least one yaku (dora do not count). Concealed hands always have menzen tsumo on self-draw; on ron they need riichi, pinfu, tanyao, yakuhai or similar. Calls (chi, pon, kan) open the hand: closed-only yaku vanish and many yaku lose 1 han. Whoever calls needs a plan: a yakuhai pung, tanyao (open if kuitan), honitsu, toitoi.' }, example: null, tip: { de: 'Der Berater warnt, wenn ein Ruf die Hand yakulos machen würde.', en: 'The advisor warns when a call would leave the hand without a yaku.' }, rarity: 1, standard: true },
+  { id: 'ri_basics_furiten', category: 'basics', name: { de: 'Furiten', en: 'Furiten' }, text: { de: 'Liegt einer deiner Wartesteine in deinen eigenen Abwürfen, bist du furiten: kein Ron, nur Selbstzug. Lässt du einen Stein passieren, der deine Hand vervollständigt hätte, bist du bis zum nächsten eigenen Zug furiten; nach Riichi dauerhaft für die Hand.', en: 'If one of your waiting tiles lies among your own discards you are furiten: no ron, only self-draw. If you let a tile pass that would have completed your hand you are furiten until your next turn; after riichi permanently for the hand.' }, example: null, tip: { de: 'Achte beim Umbau der Hand auf früh abgeworfene Nachbarsteine.', en: 'When reshaping the hand, watch out for neighbours you discarded early.' }, rarity: 1, standard: true },
+  { id: 'ri_basics_dora', category: 'basics', name: { de: 'Dora, Ura-Dora, rote Fünfer', en: 'Dora, ura dora, red fives' }, text: { de: 'Der aufgedeckte Anzeiger in der toten Wand bestimmt den Dora: die nächsthöhere Zahl (9 → 1), Ost → Süd → West → Nord, Weiß → Grün → Rot. Jeder Dora in der Gewinnhand ist 1 Han, aber kein Yaku. Nach jedem Kan wird ein weiterer Anzeiger aufgedeckt. Mit Riichi zählen zusätzlich die Ura-Dora unter den Anzeigern. Rote Fünfer (eine je Farbe, Option) zählen ebenfalls 1 Han.', en: 'The revealed indicator in the dead wall defines the dora: the next number (9 → 1), East → South → West → North, White → Green → Red. Each dora in the winning hand is 1 han but no yaku. After every kan another indicator is revealed. With riichi the ura dora beneath the indicators count too. Red fives (one per suit, option) also count 1 han.' }, example: null, tip: { de: 'Dora machen billige Hände wertvoll: ein Dora-Paar als Kopf ist Gold wert.', en: 'Dora make cheap hands valuable: a dora pair as the head is worth gold.' }, rarity: 1, standard: true },
+  { id: 'ri_basics_scoring', category: 'basics', name: { de: 'Han, Fu und Zahlung', en: 'Han, fu and payment' }, text: { de: 'Grundpunkte = Fu × 2^(Han+2), gedeckelt: Mangan 2000 (ab 5 Han), Haneman 3000, Baiman 4000, Sanbaiman 6000, Yakuman 8000. Ron: der Abwerfende zahlt das Vierfache (Ost als Gewinner das Sechsfache). Tsumo: alle zahlen, Ost doppelt; Ost als Gewinner bekommt von allen doppelt. Beträge werden auf 100 aufgerundet. Honba: 300 je Zähler beim Ron, 100 von jedem beim Tsumo. Alle Riichi-Stäbchen gehen an den Gewinner.', en: 'Base points = fu × 2^(han+2), capped: mangan 2000 (from 5 han), haneman 3000, baiman 4000, sanbaiman 6000, yakuman 8000. Ron: the discarder pays four times (six times when East wins). Tsumo: everyone pays, East double; East as winner collects double from all. Amounts round up to 100. Honba: 300 per counter on ron, 100 from each on tsumo. All riichi sticks go to the winner.' }, example: null, tip: { de: 'Häufige Werte: 1000 (1 Han 30 Fu), 2000, 3900, 8000 (Mangan), 12000 (Haneman-Ron), 32000 (Yakuman).', en: 'Common values: 1000 (1 han 30 fu), 2000, 3900, 8000 (mangan), 12000 (haneman ron), 32000 (yakuman).' }, rarity: 1, standard: true },
+  { id: 'ri_basics_draw', category: 'basics', name: { de: 'Unentschieden, Tenpai, Honba', en: 'Exhaustive draw, tenpai, honba' }, text: { de: 'Ist die Wand leer, zeigen wartende Spieler ihre Hand: die Nicht-Wartenden zahlen insgesamt 3000 an die Wartenden (Noten-Bappu). Ost bleibt Geber, wenn Ost wartend war; der Honba-Zähler steigt bei jedem Unentschieden und jedem Ost-Gewinn. Fällt ein Spieler unter 0 Punkte, endet das Spiel (Option). Ein Hanchan besteht aus Ost- und Südrunde.', en: 'When the wall is empty, ready players reveal their hands: the non-ready pay 3000 in total to the ready (noten bappu). East stays dealer if East was ready; the honba counter rises with every draw and every East win. If a player drops below 0 points the game ends (option). A hanchan consists of the East and South rounds.' }, example: null, tip: { de: 'Spät im Spiel zählt Tenpai bares Geld: halte die Hand wartend, auch ohne Yaku.', en: 'Late in the hand tenpai is worth money: keep the hand ready even without a yaku.' }, rarity: 1, standard: true },
+];
+
+const RIICHI_EXAMPLES = {
+  pinfu: ['234b 567c 678k 345k 88c', 'standard'], tanyao: ['234b 567c 678k 345k 88c', 'standard'], iipeikou: ['123b 123b 456c 789k 55c', 'standard'],
+  yakuhai_dragon: ['rrr 123b 456c 789k 55c', 'standard'], yakuhai_seat: ['EEE 123b 456c 789k 55c', 'standard'], yakuhai_round: ['EEE 123b 456c 789k 55c', 'standard'],
+  chiitoitsu: ['11b 22b 33c 44c 55k EE rr', 'seven_pairs'], sanshoku: ['123b 123c 123k 456c 55c', 'standard'], ittsu: ['123b 456b 789b 234c 55c', 'standard'],
+  chanta: ['123b 789c 999k EEE 11c', 'terminals_honours'], honroutou: ['111b 999c EEE rrr 99k', 'terminals_honours'], toitoi: ['111b 555c 999k EEE rr', 'all_pungs'],
+  sanankou: ['111b 222b 333c 456k 55k', 'all_pungs'], sanshoku_doukou: ['222b 222c 222k 456c 55c', 'all_pungs'], shousangen: ['rrr ggg 123b 456c ww', 'dragons'],
+  honitsu: ['123b 456b 999b EEE rr', 'half_flush'], junchan: ['123b 789c 999k 111k 11c', 'terminals'], ryanpeikou: ['123b 123b 456c 456c 55c', 'standard'],
+  chinitsu: ['123b 456b 789b 234b 99b', 'full_flush'], kokushi: ['19b 19c 19k ESWN rgw E', 'thirteen_orphans'], suuankou: ['111b 222b 333c EEE 55k', 'all_pungs_concealed'],
+  daisangen: ['rrr ggg www 123b 55c', 'dragons'], shousuushii: ['EEE SSS WWW 123b NN', 'winds'], daisuushii: ['EEE SSS WWW NNN 55c', 'winds'],
+  tsuuiisou: ['EEE SSS WWW rrr gg', 'all_honours'], chinroutou: ['111b 999b 111c 999k 99c', 'terminals'], ryuuiisou: ['222b 333b 444b 666b gg', 'all_green'],
+  chuuren: ['1112345678999b 5b', 'nine_gates'],
+};
+
+const RIICHI_GENERIC = {
+  yaku1: { de: 'Yaku mit 1 Han.', en: 'Yaku worth 1 han.' },
+  yaku2: { de: 'Yaku mit mehreren Han (offen oft 1 Han weniger).', en: 'Yaku worth several han (often 1 han less when open).' },
+  yakuman: { de: 'Yakuman: zählt 8000 Grundpunkte (32000 bzw. 48000 für Ost); mehrere Yakuman addieren sich.', en: 'Yakuman: 8000 base points (32000, or 48000 for East); several yakuman add up.' },
+  dora: { de: 'Zählt je Stein 1 Han, ist aber kein Yaku.', en: 'Counts 1 han per tile but is no yaku.' },
+};
+
+function riichiLexicon() {
+  const generated = Object.entries(RIICHI_YAKU).filter(([id]) => id !== 'fu').map(([id, y]) => {
+    const category = y.yakuman ? 'yakuman' : y.dora ? 'dora' : y.han[0] >= 2 ? 'yaku2' : 'yaku1';
+    const ex = RIICHI_EXAMPLES[id];
+    const worth = y.yakuman ? { de: 'Yakuman', en: 'Yakuman' } : y.dora ? { de: '1 Han je Stein', en: '1 han per tile' } : { de: `${y.han[0]} Han verdeckt${y.han[1] === null ? ', nur verdeckt' : y.han[1] !== y.han[0] ? `, offen ${y.han[1]}` : ''}`, en: `${y.han[0]} han closed${y.han[1] === null ? ', closed only' : y.han[1] !== y.han[0] ? `, open ${y.han[1]}` : ''}` };
+    return {
+      id: `ri_${id}`, category, rule: id, variant: 'riichi', name: { de: y.de, en: y.en },
+      text: { de: `${RIICHI_GENERIC[category].de} ${worth.de}.`, en: `${RIICHI_GENERIC[category].en} ${worth.en}.` },
+      example: ex ? ex[0] : null, tip: null, rarity: y.yakuman ? 5 : category === 'yaku2' ? 3 : 2, standard: true, form: ex ? ex[1] : undefined, generated: true,
+    };
+  });
+  return [...RIICHI_BASICS.map((e) => ({ ...e, variant: 'riichi' })), ...generated];
+}
+
+// --- Hong Kong: Grundlagen und Beispiele ---
+export const HK_BASICS = [
+  { id: 'hk_basics_fan', category: 'basics', name: { de: 'Fan und Mindest-Fan', en: 'Fan and minimum fan' }, text: { de: 'Jede Eigenschaft der Gewinnhand bringt Fan (Punkte). Nur der Gewinner zählt. Eine Hand darf nur gewinnen, wenn sie die Mindest-Fan erreicht (Voreinstellung 3, Option 0 oder 1). Grundwert je Fan: 0 → 1, 1 → 2, 2 → 4, 3 → 8, 4 → 16, 5 → 24, 6 → 32, 7 → 48, 8 → 64, 9 → 96, 10 → 128, 11 → 192, 12 → 256, 13 (Limit) → 384.', en: 'Every property of the winning hand brings fan (points). Only the winner counts. A hand may win only when it reaches the minimum fan (default 3, option 0 or 1). Base value per fan: 0 → 1, 1 → 2, 2 → 4, 3 → 8, 4 → 16, 5 → 24, 6 → 32, 7 → 48, 8 → 64, 9 → 96, 10 → 128, 11 → 192, 12 → 256, 13 (limit) → 384.' }, example: null, tip: { de: 'Mit Mindest-Fan 3 gewinnt eine reine Chow-Hand nicht: plane Drachen-Pungs, eine Farbe oder Nur-Pungs ein.', en: 'With minimum fan 3 a plain chow hand cannot win: plan for dragon pungs, one suit or all pungs.' }, rarity: 1, standard: true },
+  { id: 'hk_basics_payment', category: 'basics', name: { de: 'Zahlung', en: 'Payment' }, text: { de: 'Selbstzug: jeder der drei Verlierer zahlt den Grundwert. Gewinn durch Abwurf: nur der Abwerfende zahlt, bei "halber Verantwortung" (半銃) das Doppelte, bei "voller Verantwortung" (全銃) das Dreifache des Grundwerts. Ost hat keine Sonderrolle bei der Zahlung, bleibt aber nach Gewinn und Unentschieden Geber.', en: 'Self-draw: each of the three losers pays the base value. Win by discard: only the discarder pays, double the base value under "half responsibility" (半銃), triple under "full responsibility" (全銃). East has no special payment role but stays dealer after a win or draw.' }, example: null, tip: { de: 'Abwürfe in eine offene Farbenhand sind teuer: du zahlst allein.', en: 'Discarding into an exposed flush hand is expensive: you pay alone.' }, rarity: 1, standard: true },
+  { id: 'hk_basics_flowers', category: 'basics', name: { de: 'Blumen und Jahreszeiten', en: 'Flowers and seasons' }, text: { de: 'Blumen und Jahreszeiten werden sofort ausgelegt und ersetzt. Die eigene Blume und die eigene Jahreszeit (Nummer des Sitzwindes) bringen je 1 Fan, alle vier Blumen oder alle vier Jahreszeiten 2 Fan, gar kein Bonusstein 1 Fan.', en: 'Flowers and seasons are laid out immediately and replaced. Your own flower and own season (seat wind number) bring 1 fan each, all four flowers or all four seasons 2 fan, no bonus tile at all 1 fan.' }, example: null, tip: { de: 'Bonussteine sind reines Glück; die Fan aus der Hand entscheiden.', en: 'Bonus tiles are pure luck; the fan from the hand decide.' }, rarity: 1, standard: true },
+];
+
+const HK_EXAMPLES = {
+  hk_all_chows: ['123b 456c 789k 234k 55b', 'standard'], hk_all_pungs: ['111b 555c 999k EEE rr', 'all_pungs'], hk_half_flush: ['123b 456b 999b EEE rr', 'half_flush'],
+  hk_full_flush: ['123b 456b 789b 234b 99b', 'full_flush'], hk_dragon_pung: ['rrr 123b 456c 789k 55c', 'standard'], hk_seat_wind: ['EEE 123b 456c 789k 55c', 'standard'],
+  hk_prevailing_wind: ['EEE 123b 456c 789k 55c', 'standard'], hk_little_three_dragons: ['rrr ggg 123b 456c ww', 'dragons'], hk_big_three_dragons: ['rrr ggg www 123b 55c', 'dragons'],
+  hk_little_four_winds: ['EEE SSS WWW 123b NN', 'winds'], hk_big_four_winds: ['EEE SSS WWW NNN 55c', 'winds'], hk_all_honours: ['EEE SSS WWW rrr gg', 'all_honours'],
+  hk_all_terminals: ['111b 999b 111c 999k 99c', 'terminals'], hk_mixed_terminals: ['111b 999c EEE rrr 99k', 'terminals_honours'], hk_four_concealed_pungs: ['111b 222b 333b EEE 99b', 'all_pungs_concealed'],
+  hk_thirteen_orphans: ['19b 19c 19k ESWN rgw E', 'thirteen_orphans'], hk_nine_gates: ['1112345678999b 5b', 'nine_gates'], hk_seven_pairs: ['11b 22b 33c 44c 55k EE rr', 'seven_pairs'],
+};
+
+function hkLexicon() {
+  const generated = Object.entries(HK_FANS).map(([id, f]) => {
+    const category = f.value >= 10 ? 'limit' : f.value >= 3 ? 'fan3' : 'fan1';
+    const ex = HK_EXAMPLES[id];
+    return {
+      id: `lex_${id}`, category, rule: id, variant: 'hongkong', name: { de: f.de, en: f.en },
+      text: { de: `${f.value} Fan.${f.value >= 13 ? ' Limit-Hand.' : ''}`, en: `${f.value} fan.${f.value >= 13 ? ' Limit hand.' : ''}` },
+      example: ex ? ex[0] : null, tip: null, rarity: f.value >= 10 ? 5 : f.value >= 3 ? 3 : 1, standard: id !== 'hk_seven_pairs', form: ex ? ex[1] : undefined, generated: true,
+    };
+  });
+  return [...HK_BASICS.map((e) => ({ ...e, variant: 'hongkong' })), ...generated];
+}
+
+export const CATEGORIES_BY_VARIANT = {
+  classical: CATEGORIES,
+  riichi: ['basics', 'yaku1', 'yaku2', 'yakuman', 'dora'],
+  hongkong: ['basics', 'fan1', 'fan3', 'limit'],
+};
+
+export function categoriesFor(variant = 'classical') {
+  return CATEGORIES_BY_VARIANT[variant] ?? CATEGORIES;
+}
+
 /** Lexikon plus automatisch erzeugte Einträge für alle Scoring-Zeilen ohne eigenen Eintrag. */
-export function fullLexicon() {
+export function fullLexicon(variant = 'classical') {
+  if (variant === 'riichi') return riichiLexicon();
+  if (variant === 'hongkong') return hkLexicon();
   const covered = new Set(LEXICON.map((e) => e.rule).filter(Boolean));
   const generated = Object.entries(SCORE_RULES)
     .filter(([id]) => !covered.has(id) && id !== 'mahjong')
@@ -114,11 +201,17 @@ export function fullLexicon() {
       standard: true,
       generated: true,
     }));
-  return [...LEXICON, ...generated];
+  return [...LEXICON.map((e) => ({ ...e, variant: 'classical' })), ...generated.map((e) => ({ ...e, variant: 'classical' }))];
 }
 
+export const VARIANTS = ['classical', 'hongkong', 'riichi'];
+
 export function lexiconById(id) {
-  return fullLexicon().find((e) => e.id === id) ?? null;
+  for (const v of VARIANTS) {
+    const e = fullLexicon(v).find((x) => x.id === id);
+    if (e) return e;
+  }
+  return null;
 }
 
 export function lexiconByRule(ruleId) {

@@ -386,7 +386,7 @@ export function applyAction(prev, action) {
       if (!legal || !p.hand.includes(action.tile)) throw new IllegalAction('Riichi hier nicht erlaubt', action);
       const double = !state.callsThisHand && p.discards.length === 0;
       doDiscard(state, seat, action.tile);
-      p.riichi = { turn: state.turn, double, ippatsu: true, safe: [] };
+      p.riichi = { turn: state.turn, tile: action.tile, double, ippatsu: true, safe: [] };
       p.score -= 1000;
       state.riichiSticks++;
       logEvent(state, { type: 'riichi', seat, tile: action.tile, double });

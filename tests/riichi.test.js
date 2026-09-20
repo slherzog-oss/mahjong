@@ -384,6 +384,9 @@ test('Riichi-Engine: zufällige KI-Partien halten die Invarianten', () => {
       const r = scoreRound(s);
       if (s.result.type === 'win') {
         wins++;
+        // Dora-Arten stammen aus den Anzeigern (IDs → Art → nächste Art)
+        assert.deepEqual(r.doraKinds, s.wall.indicators.slice(0, s.doraRevealed).map((id) => doraKindOf(kindOf(id))));
+        assert.ok(r.doraKinds.every((k) => k >= 0 && k < 34));
         const sheet = r.sheets[s.result.winner];
         assert.ok(sheet.yakuman > 0 || sheet.hanYaku > 0, 'Gewinn ohne Yaku');
         assert.ok(r.net[s.result.winner] > 0);

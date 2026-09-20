@@ -8,7 +8,7 @@
 import { createGame, applyAction, applyPayments, seatsToAct, getLegalActions, rigDeal } from '../core/state.js';
 import { nextInt } from '../core/rng.js';
 import { NUM_KINDS, countsFromKinds, kindOf } from '../core/tiles.js';
-import { RULE_PRESETS, RULE_FIELDS } from '../core/presets.js';
+import { RULE_PRESETS, RULE_FIELDS, defaultPresetFor } from '../core/presets.js';
 import { createRuleSet } from '../core/rules.js';
 import { stepAI } from '../ai/runner.js';
 import { scoreRound } from '../scoring/index.js';
@@ -181,6 +181,7 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
     /** Eine Regeloption setzen; Voreinstellung wird zu 'custom', wenn sie nicht mehr passt. */
     setRule(key, value) {
       if (!RULE_FIELDS.includes(key)) return;
+      if (key === 'variant') { api.applyPreset(defaultPresetFor(value)); return; }
       const rules = { ...settings.rules, [key]: value };
       const preset = Object.entries(RULE_PRESETS).find(([, p]) => RULE_FIELDS.every((k) => p[k] === rules[k]))?.[0] ?? 'custom';
       api.updateSettings({ rules, preset });

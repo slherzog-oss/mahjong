@@ -84,3 +84,42 @@ test('Lexikon: jede Scoring-Zeile hat einen Eintrag, Beispiele sind gültig, For
   const ids = all.map((e) => e.id);
   assert.equal(new Set(ids).size, ids.length);
 });
+
+test('Lexikon je Variante: jede Fan-/Yaku-Zeile hat einen Eintrag, Beispiele gültig, Formen bekannt', async () => {
+  const { HK_FANS } = await import('../src/scoring/hongkong.js');
+  const { RIICHI_YAKU } = await import('../src/scoring/riichi.js');
+  const { categoriesFor, lexiconById } = await import('../src/lexicon/hands.js');
+  const hk = fullLexicon('hongkong');
+  const hkRules = new Set(hk.map((e) => e.rule).filter(Boolean));
+  for (const id of Object.keys(HK_FANS)) assert.ok(hkRules.has(id), id);
+  const ri = fullLexicon('riichi');
+  const riRules = new Set(ri.map((e) => e.rule).filter(Boolean));
+  for (const id of Object.keys(RIICHI_YAKU)) if (id !== 'fu') assert.ok(riRules.has(id), id);
+  for (const e of [...hk, ...ri]) {
+    assert.ok(e.name.de && e.name.en && e.text.de && e.text.en, e.id);
+    assert.ok(categoriesFor(e.variant).includes(e.category), `${e.id}: ${e.category}`);
+    if (e.example) assert.equal(parseKinds(e.example).length, 14, e.id);
+    if (e.form) assert.ok(FORM_IDS.includes(e.form), `${e.id}: ${e.form}`);
+  }
+  const ids = [...hk, ...ri, ...fullLexicon()].map((e) => e.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(lexiconById('ri_pinfu')?.variant, 'riichi');
+  assert.equal(lexiconById('lex_hk_full_flush')?.variant, 'hongkong');
+});
+
+test('Voreinstellungen je Variante und Variantenwechsel im Store', () => {
+  assert.equal(RULE_PRESETS.riichi.variant, 'riichi');
+  assert.equal(RULE_PRESETS.hongkong.variant, 'hongkong');
+  assert.equal(presetOf(RULE_PRESETS.riichi), 'riichi');
+  const store = createStore({ storage: memStorage(), persistence: memoryAdapter() });
+  store.setRule('variant', 'riichi');
+  assert.equal(store.settings.preset, 'riichi');
+  assert.equal(store.settings.rules.startScore, 25000);
+  store.setRule('redFives', false);
+  assert.equal(store.settings.preset, 'custom');
+  store.updateSettings({ aiDelayMs: 0 });
+  store.newGame({ seed: 'variant-1' });
+  const st = store.getSnapshot().state;
+  assert.equal(st.ruleSet.variant, 'riichi');
+  assert.equal(st.wall.indicators.length, 5);
+});

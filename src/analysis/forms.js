@@ -12,28 +12,31 @@ import { completionChance, drawsLeftFor } from './probability.js';
 
 const GREEN = new Set(['2b', '3b', '4b', '6b', '8b', 'Gd'].map(kindByName));
 
-/** Formen mit Anzeige-Reihenfolge, Wertschätzung (Punkte vor Kappung) und Lexikon-ID. */
+/** Wert je Variante (Punkte vor Kappung; Riichi/Hong Kong: typische Gewinnhöhe). */
+const V = (classical, hongkong, riichi) => (rs) => (rs.variant === 'riichi' ? riichi : rs.variant === 'hongkong' ? hongkong : typeof classical === 'function' ? classical(rs) : classical);
+
+/** Formen mit Anzeige-Reihenfolge, Wertschätzung je Variante und Lexikon-ID. */
 export const FORMS = [
-  { id: 'standard', lexicon: 'basics_sets', value: (rs) => 32 },
-  { id: 'concealed', lexicon: 'dbl_concealed', value: (rs) => 40 * 2 },
-  { id: 'all_pungs', lexicon: 'dbl_no_chow', value: (rs) => 56 * 2 },
-  { id: 'half_flush', lexicon: 'dbl_half_flush', value: (rs) => 40 * 2 },
-  { id: 'full_flush', lexicon: 'dbl_full_flush', value: (rs) => Math.min(rs.limit, 40 * 8) },
-  { id: 'terminals_honours', lexicon: 'dbl_terminals_honours', value: (rs) => 64 * 2 },
-  { id: 'dragons', lexicon: 'dbl_little_three_dragons', value: (rs) => rs.limit },
-  { id: 'winds', lexicon: 'dbl_little_four_winds', value: (rs) => rs.limit },
-  { id: 'all_pungs_concealed', lexicon: 'lim_hidden_treasure', value: (rs) => rs.limit },
-  { id: 'full_flush_concealed', lexicon: 'lim_concealed_full_flush', value: (rs) => rs.limit },
-  { id: 'all_honours', lexicon: 'lim_all_honours', value: (rs) => rs.limit },
-  { id: 'terminals', lexicon: 'lim_heads_and_tails', value: (rs) => rs.limit },
-  { id: 'all_green', lexicon: 'lim_all_green', value: (rs) => rs.limit },
-  { id: 'nine_gates', lexicon: 'lim_nine_gates', value: (rs) => rs.limit },
-  { id: 'thirteen_orphans', lexicon: 'lim_thirteen_orphans', value: (rs) => rs.limit },
-  { id: 'seven_pairs', lexicon: 'lim_seven_pairs', value: (rs) => rs.limit, option: 'sevenPairs' },
-  { id: 'wriggling_snake', lexicon: 'lim_wriggling_snake', value: (rs) => rs.limit, option: 'optionalHands' },
-  { id: 'knitting', lexicon: 'lim_knitting', value: (rs) => rs.limit, option: 'optionalHands' },
-  { id: 'triple_knitting', lexicon: 'lim_triple_knitting', value: (rs) => rs.limit, option: 'optionalHands' },
-  { id: 'all_pair_honours', lexicon: 'lim_all_pair_honours', value: (rs) => rs.limit, option: 'optionalHands' },
+  { id: 'standard', lexicon: 'basics_sets', value: V(32, 8, 1000) },
+  { id: 'concealed', lexicon: 'dbl_concealed', value: V(80, 8, 2000) },
+  { id: 'all_pungs', lexicon: 'dbl_no_chow', value: V(112, 24, 2600) },
+  { id: 'half_flush', lexicon: 'dbl_half_flush', value: V(80, 24, 3900) },
+  { id: 'full_flush', lexicon: 'dbl_full_flush', value: V((rs) => Math.min(rs.limit, 320), 128, 8000) },
+  { id: 'terminals_honours', lexicon: 'dbl_terminals_honours', value: V(128, 32, 3900) },
+  { id: 'dragons', lexicon: 'dbl_little_three_dragons', value: V((rs) => rs.limit, 64, 8000) },
+  { id: 'winds', lexicon: 'dbl_little_four_winds', value: V((rs) => rs.limit, 384, 32000) },
+  { id: 'all_pungs_concealed', lexicon: 'lim_hidden_treasure', value: V((rs) => rs.limit, 64, 32000) },
+  { id: 'full_flush_concealed', lexicon: 'lim_concealed_full_flush', value: V((rs) => rs.limit, 128, 12000) },
+  { id: 'all_honours', lexicon: 'lim_all_honours', value: V((rs) => rs.limit, 384, 32000) },
+  { id: 'terminals', lexicon: 'lim_heads_and_tails', value: V((rs) => rs.limit, 384, 32000) },
+  { id: 'all_green', lexicon: 'lim_all_green', value: V((rs) => rs.limit, 384, 32000) },
+  { id: 'nine_gates', lexicon: 'lim_nine_gates', value: V((rs) => rs.limit, 384, 32000) },
+  { id: 'thirteen_orphans', lexicon: 'lim_thirteen_orphans', value: V((rs) => rs.limit, 384, 32000) },
+  { id: 'seven_pairs', lexicon: 'lim_seven_pairs', value: V((rs) => rs.limit, 16, 1600), option: 'sevenPairs' },
+  { id: 'wriggling_snake', lexicon: 'lim_wriggling_snake', value: V((rs) => rs.limit, 0, 0), option: 'optionalHands' },
+  { id: 'knitting', lexicon: 'lim_knitting', value: V((rs) => rs.limit, 0, 0), option: 'optionalHands' },
+  { id: 'triple_knitting', lexicon: 'lim_triple_knitting', value: V((rs) => rs.limit, 0, 0), option: 'optionalHands' },
+  { id: 'all_pair_honours', lexicon: 'lim_all_pair_honours', value: V((rs) => rs.limit, 0, 0), option: 'optionalHands' },
 ];
 
 export const FORM_IDS = FORMS.map((f) => f.id);

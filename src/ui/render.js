@@ -1,15 +1,16 @@
 // Rendering: Zustand → HTML. Reine Funktionen, Ereignisse per Delegation in app.js.
 import { kindOf, sortTiles, KIND_NAMES } from '../core/tiles.js';
-import { seatWind, seatsToAct } from '../core/state.js';
+import { seatWind, seatsToAct, isFuriten } from '../core/state.js';
 import { tileHtml, tileHtmlById, backHtml } from './tiles.js';
 import { t } from '../i18n/index.js';
-import { ruleLabel } from '../scoring/table.js';
+import { scoreLabel } from '../scoring/index.js';
 import { shanten } from '../analysis/shanten.js';
 import { ukeire, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
 import { completionChance, drawsLeftFor } from '../analysis/probability.js';
 import { analyzeForms, formKeepKinds } from '../analysis/forms.js';
-import { renderFormsPanel } from './lexicon.js';
-import { RULE_PRESETS, RULE_FIELDS } from '../core/presets.js';
+import { renderFormsPanel, formName } from './lexicon.js';
+import { RULE_PRESETS, VARIANT_FIELDS } from '../core/presets.js';
+import { VARIANTS } from '../core/rules.js';
 import { LANGUAGES, getLanguage } from '../i18n/index.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -19,7 +20,7 @@ export function renderStart(snap) {
   return `
   <section class="screen start">
     <h1>${t('appName')}</h1>
-    <p class="muted">${t('subtitle')}</p>
+    <p class="muted">${t('variantSubtitle.' + (s.rules.variant ?? 'classical'))}</p>
     <div class="stack">
       <button class="btn primary" data-action="new-game">${t('newGame')}</button>
       ${snap.hasSave ? `<button class="btn" data-action="resume">${t('resume')}</button>` : ''}
@@ -59,22 +60,34 @@ export function renderStart(snap) {
     </details>
     <details class="settings">
       <summary>${t('rules')}</summary>
-      <label>${t('preset')}
-        <select data-action="preset">${[...Object.keys(RULE_PRESETS), 'custom'].map((p) => `<option value="${p}" ${s.preset === p ? 'selected' : ''}>${t('presets.' + p)}</option>`).join('')}</select></label>
-      <label>${t('limit')}
-        <select data-rule="limit">${[500, 1000].map((r) => `<option value="${r}" ${s.rules.limit === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      <label>${t('rule.deadWallSize')}
-        <select data-rule="deadWallSize">${[14, 16].map((r) => `<option value="${r}" ${s.rules.deadWallSize === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      <label>${t('rule.maxChows')}
-        <select data-rule="maxChows">${[1, 2, 4].map((r) => `<option value="${r}" ${s.rules.maxChows === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      <label>${t('rule.startScore')}
-        <select data-rule="startScore">${[1000, 2000, 5000].map((r) => `<option value="${r}" ${s.rules.startScore === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      ${['bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'discarderPaysAll', 'losersPayEachOther', 'eastDoubles', 'loserHandDoubles', 'refillDeadWall', 'robKongForThirteenOrphans', 'optionalHands', 'penalties']
-        .map((k) => `<label><input type="checkbox" data-rule="${k}" ${s.rules[k] ? 'checked' : ''}> ${t('rule.' + k) !== 'rule.' + k ? t('rule.' + k) : t(k)}</label>`).join('')}
+      ${rulesPanel(s)}
     </details>
     ${snap.pwa?.canInstall ? `<p><button class="btn" data-action="install">${t('install')}</button></p>` : ''}
     <p class="muted small">${t('version')} ${snap.pwa?.version ? snap.pwa.version : '0.1'} · CC0-Steine von FluffyStuff</p>
   </section>`;
+}
+
+/** Regeloptionen je Variante (Felder aus VARIANT_FIELDS). */
+function rulesPanel(s) {
+  const variant = s.rules.variant ?? 'classical';
+  const fields = VARIANT_FIELDS[variant] ?? VARIANT_FIELDS.classical;
+  const label = (key) => (t('rule.' + key) !== 'rule.' + key ? t('rule.' + key) : t(key));
+  const startScores = variant === 'riichi' ? [25000, 30000] : variant === 'hongkong' ? [500, 1000, 2000] : [1000, 2000, 5000];
+  const selects = { limit: [500, 1000], deadWallSize: [14, 16], maxChows: [1, 2, 4], startScore: startScores, minFan: [0, 1, 3], hkPayment: ['half', 'full'] };
+  const optLabel = (key, v) => (key === 'hkPayment' ? t('hkPayments.' + v) : v);
+  const row = (key) => {
+    if (selects[key]) {
+      return `<label>${label(key)}
+        <select data-rule="${key}">${selects[key].map((v) => `<option value="${v}" ${String(s.rules[key]) === String(v) ? 'selected' : ''}>${optLabel(key, v)}</option>`).join('')}</select></label>`;
+    }
+    return `<label><input type="checkbox" data-rule="${key}" ${s.rules[key] ? 'checked' : ''}> ${label(key)}</label>`;
+  };
+  return `
+      <label>${t('variant')}
+        <select data-rule="variant">${VARIANTS.map((v) => `<option value="${v}" ${variant === v ? 'selected' : ''}>${t('variants.' + v)}</option>`).join('')}</select></label>
+      <label>${t('preset')}
+        <select data-action="preset">${[...Object.keys(RULE_PRESETS), 'custom'].filter((p) => p === 'custom' || (RULE_PRESETS[p].variant ?? 'classical') === variant).map((p) => `<option value="${p}" ${s.preset === p ? 'selected' : ''}>${t('presets.' + p)}</option>`).join('')}</select></label>
+      ${fields.map(row).join('')}`;
 }
 
 function playerName(state, seat, humanSeat) {
@@ -98,11 +111,12 @@ function opponentHtml(state, p, humanSeat, ui) {
     <div class="opp-head">
       <span class="wind">${t('windShort')[wind]}</span>
       <span class="name">${esc(playerName(state, p.seat, humanSeat))}${isDealer ? ' ·' + t('dealer') : ''}</span>
+      ${p.riichi ? `<span class="riichi-badge">${t('riichi')}</span>` : ''}
       <span class="score">${p.score}</span>
     </div>
     <div class="opp-hand">${p.hand.map(() => backHtml('small')).join('')}</div>
     <div class="opp-melds">${p.melds.map(meldHtml).join('')}${p.bonus.map((id) => tileHtmlById(id, { classes: 'small bonus' })).join('')}</div>
-    <div class="discards">${p.discards.map((id) => tileHtmlById(id, { classes: 'small' + (id === last ? ' last' : '') })).join('')}</div>
+    <div class="discards">${p.discards.map((id) => tileHtmlById(id, { classes: 'small' + (id === last ? ' last' : '') + (p.riichi && id === p.riichi.tile ? ' riichi-tile' : '') })).join('')}</div>
   </div>`;
 }
 
@@ -160,6 +174,11 @@ export function renderGame(snap, ui) {
   const drawn = state.lastDraw && state.lastDraw.seat === humanSeat && state.phase === 'discard' ? state.lastDraw.tile : null;
   const handTiles = hand.filter((id) => id !== drawn);
   const discardable = new Set(legal.filter((a) => a.type === 'discard').map((a) => kindOf(a.tile)));
+  const riichiKinds = new Set(legal.filter((a) => a.type === 'riichi').map((a) => kindOf(a.tile)));
+  const riichiMode = !!ui.riichiMode && riichiKinds.size > 0;
+  const rs = state.ruleSet;
+  const riichiVariant = rs.variant === 'riichi';
+  const furiten = riichiVariant && me.hand.length > 0 && (me.hand.length - 1) % 3 === 0 && isFuriten(state, me);
 
   const target = me.target ?? null;
   const showForm = ui.showKinds ?? target;
@@ -171,7 +190,8 @@ export function renderGame(snap, ui) {
     const k = kindOf(id);
     const cls = [
       ui.selected === id ? 'selected' : '',
-      acting && state.phase === 'discard' && discardable.has(k) ? 'clickable' : '',
+      acting && state.phase === 'discard' && (riichiMode ? riichiKinds.has(k) : discardable.has(k)) ? 'clickable' : '',
+      riichiMode && riichiKinds.has(k) ? 'riichi-ok' : '',
       ui.advice?.kind === k ? 'advised' : '',
       ui.advice?.dangerKinds?.includes(k) ? 'dangerous' : '',
       keep ? (keep.has(k) ? 'keep' : 'expendable') : '',
@@ -182,7 +202,7 @@ export function renderGame(snap, ui) {
   if (snap.settings.showForms && me.hand.length > 0 && state.phase !== 'handOver') {
     try {
       const forms = cachedForms(state, humanSeat);
-      formsHtml = renderFormsPanel(forms, { target, expanded: ui.formsOpen, showKinds: ui.showKinds });
+      formsHtml = renderFormsPanel(forms, { target, expanded: ui.formsOpen, showKinds: ui.showKinds, variant: rs.variant });
       if (target && !forms.some((f) => f.form === target && f.chance >= 0.02)) {
         const tf = forms.find((f) => f.form === target);
         formsHtml = `<div class="warn">${t('forms.targetLost', { pct: tf ? Math.round(tf.chance * 100) : 0 })} <button class="btn tiny" data-action="clear-target">${t('forms.free')}</button></div>` + formsHtml;
@@ -190,11 +210,15 @@ export function renderGame(snap, ui) {
     } catch (e) { console.warn(e); }
   }
 
+  const doraHtml = riichiVariant
+    ? `<span class="dora" title="${t('dora')}">${t('dora')} ${(state.wall.indicators ?? []).slice(0, state.doraRevealed ?? 1).map((id) => tileHtmlById(id, { classes: 'tiny' })).join('')}</span>`
+      + `<span class="honba" title="${t('honba')} / ${t('sticks')}">${t('honba')} ${state.honba ?? 0}${state.riichiSticks ? ' ' + '<span class="stick"></span>'.repeat(Math.min(4, state.riichiSticks)) + (state.riichiSticks > 4 ? '×' + state.riichiSticks : '') : ''}</span>`
+    : '';
   return `
-  <section class="screen game">
+  <section class="screen game${riichiMode ? ' riichi-mode' : ''}">
     <header class="topbar">
       <button class="btn small" data-action="quit">${t('back')}</button>
-      <span class="info">${t('round')} ${t('windShort')[state.roundWind]} · ${t('hand')} ${state.handNumber} · ${t('wall')} ${state.wall.living.length}</span>
+      <span class="info">${t('round')} ${t('windShort')[state.roundWind]} · ${t('hand')} ${state.handNumber} · ${t('wall')} ${state.wall.living.length}${doraHtml}</span>
       <span class="topbar-right">
         <button class="btn small" data-action="lexicon" title="${t('lexicon')}" aria-label="${t('lexicon')}">?</button>
         <button class="btn small" data-action="undo" ${snap.canUndo ? '' : 'disabled'}>${t('undo')}</button>
@@ -203,17 +227,19 @@ export function renderGame(snap, ui) {
     <div class="table">
       <div class="opponents">${others.map((p) => opponentHtml(state, p, humanSeat, ui)).join('')}</div>
       <div class="center">
-        <div class="status ${acting ? 'acting' : ''}" aria-live="polite">${status}</div>
+        <div class="status ${acting ? 'acting' : ''}" aria-live="polite">${riichiMode ? t('riichiHint') : status}</div>
         ${state.lastDiscard && !state.lastDiscard.claimed && state.phase === 'claiming' ? `<div class="last-discard">${tileHtmlById(state.lastDiscard.tile)}</div>` : ''}
       </div>
       <div class="me${acting ? ' acting' : ''}">
         <div class="me-head">
           <span class="wind">${t('windShort')[wind]}</span>
           <span class="name">${t('you')}${state.dealer === humanSeat ? ' · ' + t('dealer') : ''}</span>
+          ${me.riichi ? `<span class="riichi-badge">${t('riichi')}</span>` : ''}
+          ${furiten ? `<span class="furiten-badge" title="${t('furitenHint')}">${t('furiten')}</span>` : ''}
           <span class="score">${me.score}</span>
           ${snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat) + mcHtml(ui.mc) : ''}
         </div>
-        <div class="me-discards">${me.discards.map((id) => tileHtmlById(id, { classes: 'small' })).join('')}</div>
+        <div class="me-discards">${me.discards.map((id) => tileHtmlById(id, { classes: 'small' + (me.riichi && id === me.riichi.tile ? ' riichi-tile' : '') })).join('')}</div>
         <div class="me-melds">${me.melds.map(meldHtml).join('')}${me.bonus.map((id) => tileHtmlById(id, { classes: 'small bonus' })).join('')}</div>
         <div class="hand" role="group" aria-label="${t('hand')}">
           ${handTiles.map(tileBtn).join('')}
@@ -281,33 +307,70 @@ function actionsHtml(state, snap, legal, ui) {
     }
   }
   if (state.phase === 'discard' && legal.some((a) => a.type === 'discard')) {
-    if (snap.settings.confirmDiscard) out.push(btn(t('discard'), 'data-action="discard-selected"', ui.selected !== null ? 'primary' : ''));
+    const riichis = legal.filter((a) => a.type === 'riichi');
+    if (riichis.length) {
+      if (ui.riichiMode) out.push(btn(t('riichiCancel'), 'data-action="riichi-cancel"'));
+      else out.push(btn(t('riichi'), 'data-action="riichi"', 'riichi'));
+    }
+    if (snap.settings.confirmDiscard && !ui.riichiMode) out.push(btn(t('discard'), 'data-action="discard-selected"', ui.selected !== null ? 'primary' : ''));
     out.push(btn(t('advisor'), 'data-action="advise"'));
   }
   if (state.phase === 'claiming') out.push(btn(t('advisor'), 'data-action="advise"'));
   return out.join('');
 }
 
+/** Wertangabe einer Scoring-Zeile je Art. */
+function lineValue(l) {
+  switch (l.kind) {
+    case 'points': return l.value;
+    case 'double': return '×2';
+    case 'limit': return t('limitHand');
+    case 'fan': return `${l.value} ${t('fan')}`;
+    case 'han': return `${l.value} ${t('han')}`;
+    case 'yakuman': return l.value > 1 ? `${t('yakuman')} ×${l.value}` : t('yakuman');
+    case 'dora': return `${l.value} ${t('han')}`;
+    case 'fu': return `${l.value} ${t('fu')}`;
+    default: return l.value;
+  }
+}
+
+function sheetSummary(sh, variant, r) {
+  if (!sh) return '';
+  if (variant === 'hongkong') return sh.winner ? `${sh.fan} ${t('fan')} = <b>${sh.total}</b>` : '';
+  if (variant === 'riichi') {
+    if (r.type === 'draw') return `<span class="${sh.tenpai ? 'tenpai' : 'noten'}">${sh.tenpai ? t('tenpai') : t('noten')}</span>`;
+    if (!sh.winner) return '';
+    const size = sh.yakuman ? `${t('yakuman')}${sh.yakuman > 1 ? ' ×' + sh.yakuman : ''}` : `${sh.han} ${t('han')} ${sh.fu} ${t('fu')}`;
+    return `${size}${sh.limitName && !sh.yakuman ? ' · ' + (t('limitNames.' + sh.limitName) !== 'limitNames.' + sh.limitName ? t('limitNames.' + sh.limitName) : sh.limitName) : ''} = <b>${sh.total}</b>`;
+  }
+  return `${sh.points} ${t('points')} · ${sh.doubles} ${t('doubles')}${sh.limit ? ' · ' + t('limitHand') : ''} = <b>${sh.total}</b>`;
+}
+
 export function renderHandOver(snap) {
   const { state, humanSeat, lastScore } = snap;
   const r = state.result ?? {};
+  const variant = state.ruleSet.variant ?? 'classical';
   let head;
-  if (r.type === 'draw' || !r.type) head = `<p>${t('drawGame')}</p>`;
+  if (r.type === 'draw' || !r.type) head = `<p>${variant === 'riichi' ? t('drawGameRiichi') : t('drawGame')}</p>`;
   else {
     const w = playerName(state, r.winner, humanSeat);
     const how = r.selfDraw ? t('selfDraw') : `${t('fromDiscard')} ${playerName(state, r.from, humanSeat)}`;
     head = `<p><b>${esc(w)}</b> ${t('winBy')} ${esc(how)}.</p>`;
     if (r.dangerousGame) head += `<p class="warn">${esc(t('dangerousGame', { name: playerName(state, r.from, humanSeat) }))}</p>`;
   }
+  if (variant === 'riichi' && lastScore?.doraKinds?.length) {
+    const ura = r.type === 'win' && state.players[r.winner]?.riichi && lastScore.uraKinds?.length ? ` · Ura ${lastScore.uraKinds.map((k) => tileHtml(k, { classes: 'tiny' })).join('')}` : '';
+    head += `<p class="muted small">${t('dora')} ${lastScore.doraKinds.map((k) => tileHtml(k, { classes: 'tiny' })).join('')}${ura}${r.honba ? ` · ${t('honba')} ${r.honba}` : ''}${r.riichiSticks ? ` · ${t('sticks')} ${r.riichiSticks}` : ''}</p>`;
+  }
   const sheets = lastScore?.sheets;
   const rows = state.players.map((p, i) => {
     const sh = sheets?.[i];
-    const lines = sh ? sh.lines.map((l) => `<li>${esc(ruleLabel(l.id, getLanguage()))}${l.kinds ? ' ' + l.kinds.map((k) => tileHtml(k, { classes: 'tiny' })).join('') : ''} <span class="muted">${l.kind === 'points' ? l.value : l.kind === 'double' ? '×2' : t('limitHand')}</span></li>`).join('') : '';
+    const lines = sh ? sh.lines.map((l) => `<li>${esc(scoreLabel(l.id, getLanguage()))}${l.kinds ? ' ' + l.kinds.map((k) => tileHtml(k, { classes: 'tiny' })).join('') : ''} <span class="muted">${lineValue(l)}</span></li>`).join('') : '';
     const hand = [...p.melds.flatMap((m) => m.tiles), ...sortTiles(p.hand)];
     return `
     <div class="sheet${sh?.winner ? ' winner' : ''}">
       <div class="sheet-head"><b>${esc(playerName(state, p.seat, humanSeat))}</b>
-        <span>${sh ? `${sh.points} ${t('points')} · ${sh.doubles} ${t('doubles')}${sh.limit ? ' · ' + t('limitHand') : ''} = <b>${sh.total}</b>` : ''}</span>
+        <span>${sheetSummary(sh, variant, r)}</span>
         <span class="net ${(lastScore?.net?.[i] ?? 0) >= 0 ? 'pos' : 'neg'}">${lastScore ? (lastScore.net[i] >= 0 ? '+' : '') + lastScore.net[i] : ''}</span>
         <span class="score">${p.score}</span></div>
       <div class="sheet-hand">${hand.map((id) => tileHtmlById(id, { classes: 'small' })).join('')}</div>
@@ -332,9 +395,11 @@ export function renderHandOver(snap) {
 export function renderGameOver(snap) {
   const { state, humanSeat } = snap;
   const ranking = [...state.players].sort((a, b) => b.score - a.score);
+  const over = state.log.findLast?.((e) => e.type === 'game_over') ?? null;
   return `
   <section class="screen gameover">
     <h2>${t('gameOver')}</h2>
+    ${over?.bust ? `<p class="warn">${t('bust')}</p>` : ''}
     <ol class="ranking">${ranking.map((p) => `<li><span>${esc(playerName(state, p.seat, humanSeat))}</span><b>${p.score}</b></li>`).join('')}</ol>
     <div class="stack">
       <button class="btn primary" data-action="analysis-current">${t('analyze')}</button>

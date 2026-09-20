@@ -11,6 +11,8 @@ import { kindOf, KIND_NAMES } from '../core/tiles.js';
 import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
 import { t, setLanguage, setOverrides } from '../i18n/index.js';
 import { renderTutorial } from './tutorial.js';
+import { setRedFives } from './tiles.js';
+import { defaultPresetFor } from '../core/presets.js';
 import { playSound } from './sound.js';
 import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, keepAwake, vibrate, isStandalone } from './pwa.js';
 
@@ -53,7 +55,7 @@ function applySettingsToI18n(settings) {
 }
 applySettingsToI18n(store.settings);
 store.checkSave();
-const ui = { selected: null, legal: [], advice: null, screen: null, tutorial: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null, analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null } };
+const ui = { selected: null, legal: [], advice: null, screen: null, tutorial: null, riichiMode: false, lexicon: { query: '', category: 'all', open: null, variant: null }, formsOpen: false, showKinds: null, practice: null, analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null } };
 let lastPhaseKey = '';
 
 function render(snap) {
@@ -61,6 +63,8 @@ function render(snap) {
   applySettingsToI18n(snap.settings);
   document.body.classList.toggle('no-anim', !snap.settings.animations);
   ui.legal = state ? store.legalActions() : [];
+  setRedFives(!!state && state.ruleSet.variant === 'riichi' && !!state.ruleSet.redFives);
+  if (!ui.lexicon.variant) ui.lexicon.variant = snap.settings.rules.variant ?? 'classical';
   ui.pwa = { updateReady: pwa.updateReady, canInstall: !!pwa.installPrompt && !isStandalone(), version: pwa.version };
   let html;
   if (ui.screen === 'lexicon') html = renderLexicon(ui);
@@ -73,7 +77,7 @@ function render(snap) {
   ui.mc = mc.key && state && mc.key === `${state.seed}:${state.handNumber}:${state.log.length}` ? mc.result : null;
   if (!Number.isInteger(ui.tutorial) && !snap.settings.tutorialDone && !state && !ui.screen) ui.tutorial = 0;
   const tutorialOpen = Number.isInteger(ui.tutorial) && ui.tutorial >= 0;
-  root.innerHTML = renderBanner(ui.pwa) + html + (tutorialOpen ? renderTutorial(ui.tutorial) : '');
+  root.innerHTML = renderBanner(ui.pwa) + html + (tutorialOpen ? renderTutorial(ui.tutorial, snap.settings.rules.variant ?? 'classical') : '');
   requestMonteCarlo(snap);
   // Lernmodus: Empfehlung automatisch nach jedem eigenen Zug
   if (snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {
@@ -93,6 +97,7 @@ function render(snap) {
     ui.lastSoundKey = stateKey(state);
     const last = state.log.at(-1);
     if (last?.type === 'discard') playSound('discard');
+    else if (last?.type === 'riichi') playSound('call');
     else if (last?.type === 'mahjong') playSound(last.seat === snap.humanSeat ? 'win' : 'lose');
     else if (['pung', 'chow', 'kong'].includes(last?.type)) playSound('claim');
   }
@@ -102,6 +107,7 @@ function render(snap) {
     // Auswahl und Empfehlung verfallen mit jedem Zug
     if (!(state && state.phase === 'discard')) ui.selected = null;
     ui.advice = null;
+    ui.riichiMode = false;
   }
   document.body.classList.toggle('in-game', !!state);
 }
@@ -155,6 +161,12 @@ root.addEventListener('click', (ev) => {
   if (tile && snap.state?.phase === 'discard' && snap.humanToAct) {
     const id = Number(tile.dataset.id);
     try {
+      if (ui.riichiMode) {
+        const ok = ui.legal.some((a) => a.type === 'riichi' && kindOf(a.tile) === kindOf(id));
+        if (ok) { ui.riichiMode = false; ui.selected = null; ui.advice = null; store.dispatch({ type: 'riichi', tile: id }); }
+        else showToast(t('riichiHint'));
+        return;
+      }
       if (!snap.settings.confirmDiscard || ui.selected === id) {
         discard(id);
       } else {
@@ -192,11 +204,19 @@ root.addEventListener('click', (ev) => {
       }
       case 'chow': store.dispatch({ type: 'chow', kinds: btn.dataset.kinds.split(',').map(Number) }); break;
       case 'discard-selected': if (ui.selected !== null) discard(ui.selected); break;
+      case 'riichi': {
+        const withSelected = ui.selected !== null && ui.legal.some((a) => a.type === 'riichi' && kindOf(a.tile) === kindOf(ui.selected));
+        if (withSelected) { const id = ui.selected; ui.selected = null; ui.advice = null; store.dispatch({ type: 'riichi', tile: id }); }
+        else { ui.riichiMode = true; ui.selected = null; render(snap); }
+        break;
+      }
+      case 'riichi-cancel': ui.riichiMode = false; render(snap); break;
       case 'advise': advise(); break;
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
-      case 'lexicon': ui.screen = 'lexicon'; render(snap); break;
-      case 'practice-list': ui.screen = 'lexicon'; ui.lexicon.category = 'limit'; ui.lexicon.query = ''; render(snap); break;
+      case 'lexicon': ui.screen = 'lexicon'; ui.lexicon.variant = snap.state?.ruleSet.variant ?? store.settings.rules.variant ?? 'classical'; render(snap); break;
+      case 'lexicon-variant': ui.lexicon.variant = btn.dataset.variant; ui.lexicon.category = 'all'; ui.lexicon.open = null; render(snap); break;
+      case 'practice-list': ui.screen = 'lexicon'; ui.lexicon.variant = store.settings.rules.variant ?? 'classical'; ui.lexicon.category = ui.lexicon.variant === 'classical' ? 'limit' : 'all'; ui.lexicon.query = ''; render(snap); break;
       case 'tutorial-start': ui.tutorial = 0; render(snap); break;
       case 'tutorial-next': ui.tutorial = (ui.tutorial ?? 0) + 1; render(snap); break;
       case 'tutorial-skip': case 'tutorial-done': ui.tutorial = -1; store.updateSettings({ tutorialDone: true }); break;
@@ -216,6 +236,7 @@ root.addEventListener('click', (ev) => {
       case 'practice': {
         const entry = lexiconById(btn.dataset.id);
         if (!entry?.example) break;
+        if (entry.variant && entry.variant !== (store.settings.rules.variant ?? 'classical')) store.applyPreset(defaultPresetFor(entry.variant));
         ui.screen = null;
         ui.practice = t('practiceHint', { name: entry.name[store.settings.language] ?? entry.name.de });
         ui.formsOpen = true;
@@ -296,7 +317,7 @@ root.addEventListener('change', (ev) => {
   const rule = ev.target.closest('[data-rule]');
   if (rule) {
     let value = rule.type === 'checkbox' ? rule.checked : rule.value;
-    if (['limit', 'deadWallSize', 'maxChows', 'startScore'].includes(rule.dataset.rule)) value = Number(value);
+    if (['limit', 'deadWallSize', 'maxChows', 'startScore', 'minFan'].includes(rule.dataset.rule)) value = Number(value);
     store.setRule(rule.dataset.rule, value);
     return;
   }

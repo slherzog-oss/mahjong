@@ -369,8 +369,9 @@ export function scoreRoundRiichi(state, ruleSet = state.ruleSet) {
     const sheets = state.players.map((p, i) => ({ winner: false, variant: 'riichi', tenpai: tenpai[i], lines: [], total: 0, han: 0, fu: 0, yakuman: 0 }));
     return { sheets, payments, net: netFromPaymentsRiichi(payments), bonus: [0, 0, 0, 0], tenpai };
   }
-  const doraKinds = (state.wall.indicators ?? []).slice(0, state.doraRevealed ?? 1).map(doraKindOf);
-  const uraKinds = (state.wall.ura ?? []).slice(0, state.doraRevealed ?? 1).map(doraKindOf);
+  // Anzeiger liegen als Stein-IDs in der Wand; der Dora ist die nächste Art
+  const doraKinds = (state.wall.indicators ?? []).slice(0, state.doraRevealed ?? 1).map((id) => doraKindOf(kindOf(id)));
+  const uraKinds = (state.wall.ura ?? []).slice(0, state.doraRevealed ?? 1).map((id) => doraKindOf(kindOf(id)));
   const sheets = state.players.map((p) => {
     if (p.seat !== r.winner) return { winner: false, variant: 'riichi', lines: [], total: 0, han: 0, fu: 0, yakuman: 0 };
     const seatW = (p.seat - state.dealer + 4) % 4;

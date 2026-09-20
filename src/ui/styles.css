@@ -252,3 +252,20 @@ body:not(.no-anim) .opponent.acting, body:not(.no-anim) .me.acting { transition:
 
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translate(-50%, 20px); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 30; pointer-events: none; max-width: 90vw; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Varianten: Riichi und Hong Kong */
+.riichi-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 0.75em; font-weight: 700; letter-spacing: 0.5px; }
+.furiten-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: rgba(217,83,79,0.25); color: #ffb3b0; font-size: 0.75em; font-weight: 600; }
+.tile.riichi-tile { transform: rotate(90deg) translateY(-15%); margin: 0 6px; }
+.tile.red::after { content: ''; position: absolute; right: 2px; bottom: 2px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 1px #fff; }
+.tile.riichi-ok img { box-shadow: 0 0 0 3px var(--danger); }
+.topbar .dora { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; }
+.topbar .dora .tile { vertical-align: middle; }
+.topbar .honba { margin-left: 8px; color: var(--accent); }
+.stick { display: inline-block; width: 22px; height: 6px; border-radius: 3px; background: #fff; position: relative; vertical-align: middle; margin: 0 2px; }
+.stick::after { content: ''; position: absolute; left: 9px; top: 1px; width: 4px; height: 4px; border-radius: 50%; background: var(--danger); }
+.sheet .tenpai { color: var(--ok); }
+.sheet .noten { color: var(--muted); }
+.chips.variants .chip.active { background: var(--danger); color: #fff; }
+.btn.riichi { background: var(--danger); color: #fff; border-color: transparent; font-weight: 700; }
+.riichi-mode .hand .tile.clickable:not(.riichi-ok) { opacity: 0.45; }

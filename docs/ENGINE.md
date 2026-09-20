@@ -35,6 +35,7 @@ handOver → idle | gameOver`.
 | `pass`, `pung`, `kong` (open), `chow` | claiming | `seat`, `kinds` (chow: die zwei eigenen Arten) |
 | `endHand` | handOver | – |
 | `setTarget` | jede außer gameOver | `seat`, `form` (Handform-ID oder null); nur Protokoll |
+| `riichi` | discard (nur Variante Riichi) | `seat`, `tile`: Abwurf mit Riichi-Ansage (1000 Punkte Einsatz) |
 
 Außerdem: `rigDeal(state, seat, kinds)` (Übungsverteilung direkt nach `startHand`,
 wird als Aktion `rigDeal` protokolliert) und `replay({ seed, ruleSet, humanSeat,
@@ -57,11 +58,35 @@ bei Selbstzug), `winningTile`, `selfDraw`, `kongReplacement`, `lastWallTile`,
 `robbedKong`, `heavenly`, `earthly`. Das Scoring-Modul liest diese Felder.
 `applyPayments(state, matrix)` verbucht die Zahlungsmatrix.
 
+## Varianten im Regelkern
+
+`ruleSet.variant` schaltet Sonderregeln:
+
+- **Riichi:** tote Wand aus 4 Ersatzsteinen, 5 Dora-Anzeigern und 5 Ura-Dora
+  (`wall.dead`, `wall.indicators`, `wall.ura`, `state.doraRevealed`; nach jedem
+  Kan ein Anzeiger mehr). Riichi-Ansage nur mit verdeckter Hand, ≥ 1000 Punkten,
+  ≥ 4 Wandsteinen und wartender Hand nach dem Abwurf (`players[].riichi =
+  { turn, tile, double, ippatsu, safe }`, `state.riichiSticks`). Nach Riichi nur
+  Tsumogiri, keine Rufe, verdecktes Kan nur mit dem gezogenen Stein bei gleichem
+  Warten. Gewinn braucht ein Yaku (`hasYaku` aus `scoring/riichi.js`); Ron
+  nicht bei Furiten (`isFuriten`: eigener Abwurf unter den Wartesteinen,
+  vorübergehend nach einem passierten Gewinnstein, dauerhaft nach Riichi).
+  Ippatsu erlischt beim nächsten eigenen Abwurf oder jedem Ruf/Kan. Kan nur bei
+  nicht leerer Wand und höchstens vier Kans am Tisch. Unentschieden: `result.tenpai`
+  je Sitz; Ost bleibt nur wartend; `state.honba` steigt bei Unentschieden und
+  Ost-Gewinn, fällt bei Fremdgewinn auf 0. `bustEnds`: Spielende unter 0 Punkten;
+  liegende Stäbchen gehen am Spielende an den Führenden.
+- **Hong Kong:** Gewinn nur mit `minFan` Fan (`fanOf` aus `scoring/hongkong.js`).
+- **Chinese Classical:** `optionalHands` (BMJA-Sonderhände), `penalties`
+  (DMJL "Gefährliches Spiel", siehe docs/SCORING.md), Twofold Fortune über
+  `state.replacementChain`.
+
 ## Protokoll
 
 `state.log` enthält je Ereignis `{ n, hand, type, … }`: `start_hand`, `deal`,
 `draw`, `discard`, `chow`, `pung`, `kong`, `rob_kong`, `bonus`, `mahjong`,
-`draw_game`, `end_hand`, `payments`, `game_over`. Zusammen mit `seed` ist jede
+`draw_game`, `end_hand`, `payments`, `game_over`, dazu `riichi`, `dangerous_game`,
+`sticks_to_leader`. Zusammen mit `seed` ist jede
 Partie vollständig reproduzierbar.
 
 ## Tests

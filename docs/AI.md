@@ -2,7 +2,9 @@
 
 `chooseAction(state, seat, { difficulty, rng })` → Aktion. Nutzt ausschließlich
 `getLegalActions` und die Analyse-Engine; deterministisch bei gleichem
-Zufallszustand (Vorbelegung: `state.rng`).
+Zufallszustand. `stepAI`/`runUntilHuman` leiten den KI-Zufall aus Seed und
+Zugnummer ab (`aiRngFor`), damit der Spielzufall unberührt bleibt und Replays
+aus der Aktionsliste exakt sind.
 
 ## Stärkeregelung (nach Stockfish-Prinzip, siehe docs/AI-RESEARCH.md)
 
@@ -27,6 +29,20 @@ werden genommen, wenn der Shanten dadurch nicht steigt. `medium` wirft mit
 
 Die Parameter stehen in `AI_PARAMS` (`player.js`) und sind der Ansatzpunkt für
 Stufe 2 (Kalibrierung über KI-gegen-KI-Simulationen, Wertbewertung).
+
+## Varianten
+
+- **Riichi:** wartende Hände sagen Riichi an (`bestRiichi`: der Abwurf mit den
+  meisten Wartesteinen). Rufe nur, wenn die Hand danach noch ein Yaku erreichen
+  kann (`analysis/yaku.js`: Tanyao, Yakuhai, Honitsu/Chinitsu, Toitoi,
+  Chanta). Gegen Riichi-Spieler gilt Tempo 1; ihre eigenen Abwürfe und alles
+  seit dem Riichi Abgeworfene ist sicher (Furiten), Suji senkt die Gefahr,
+  sonst steigt sie; die Abwurfbewertung verteidigt dann wie im späten Spiel.
+- **Hong Kong:** mit Mindest-Fan ≥ 3 bewerten auch `medium` die Abwürfe mit
+  höherem Wert-, Farb- und Honours-Gewicht; Rufe nur, wenn die Fan-Prognose
+  (`fanPotentialHK`) die Mindest-Fan erreichbar hält.
+- **DMJL-Strafen:** offensichtlich gefährliche Abwürfe werden gemieden, solange
+  Alternativen bestehen.
 
 ## Zug-Schleife (`runner.js`)
 

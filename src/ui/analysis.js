@@ -57,7 +57,7 @@ function decisionRow(d, selected) {
   } else if (d.type === 'kong') {
     what = `${t('kong')} ${KIND_NAMES[d.chosen]}`;
   } else {
-    what = `${tileHtml(d.chosen, { classes: 'tiny' })}${d.chosen !== d.best ? ` → ${tileHtml(d.best, { classes: 'tiny' })}` : ''}`;
+    what = `${d.type === 'riichi' ? t('riichi') + ' ' : ''}${tileHtml(d.chosen, { classes: 'tiny' })}${d.chosen !== d.best ? ` → ${tileHtml(d.best, { classes: 'tiny' })}` : ''}`;
   }
   return `<button class="dec ${cls}${selected ? ' sel' : ''}" data-action="analysis-decision" data-index="${d.index}">
     <span class="dec-turn">${t('ana.turn')} ${d.turn}</span>
