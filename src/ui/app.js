@@ -5,6 +5,7 @@ import { renderStart, renderGame, renderHandOver, renderGameOver } from './rende
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
 import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
 import { t } from '../i18n/de.js';
+import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, keepAwake, vibrate, isStandalone } from './pwa.js';
 
 const root = document.getElementById('app');
 const store = createStore({ persistence: defaultAdapter() });
@@ -15,12 +16,20 @@ let lastPhaseKey = '';
 function render(snap) {
   const { state } = snap;
   ui.legal = state ? store.legalActions() : [];
+  ui.pwa = { updateReady: pwa.updateReady, canInstall: !!pwa.installPrompt && !isStandalone(), version: pwa.version };
   let html;
-  if (!state) html = renderStart(snap);
+  if (!state) html = renderStart({ ...snap, pwa: ui.pwa });
   else if (state.phase === 'gameOver') html = renderGameOver(snap);
   else if (state.phase === 'handOver') html = renderHandOver(snap);
   else html = renderGame(snap, ui);
-  root.innerHTML = html;
+  root.innerHTML = renderBanner(ui.pwa) + html;
+  const inHand = !!state && !['handOver', 'gameOver', 'idle'].includes(state.phase);
+  pwa.wantAwake = inHand;
+  keepAwake(inHand);
+  if (state && snap.humanToAct && state.phase === 'claiming' && ui.lastVibrateKey !== key(state)) {
+    ui.lastVibrateKey = key(state);
+    vibrate(30);
+  }
   const key = state ? `${state.handNumber}:${state.turn}:${state.phase}:${state.log.length}` : '';
   if (key !== lastPhaseKey) {
     lastPhaseKey = key;
@@ -31,7 +40,18 @@ function render(snap) {
   document.body.classList.toggle('in-game', !!state);
 }
 
+function key(state) {
+  return `${state.handNumber}:${state.log.length}`;
+}
+
+function renderBanner(p) {
+  if (!p?.updateReady) return '';
+  return `<div class="banner"><span>${t('updateReady')}</span><button class="btn small primary" data-action="apply-update">${t('reload')}</button></div>`;
+}
+
 store.subscribe(render);
+onPwaChange(() => render(store.getSnapshot()));
+registerServiceWorker();
 
 function discard(tile) {
   ui.selected = null;
@@ -102,6 +122,8 @@ root.addEventListener('click', (ev) => {
       case 'chow': store.dispatch({ type: 'chow', kinds: btn.dataset.kinds.split(',').map(Number) }); break;
       case 'discard-selected': if (ui.selected !== null) discard(ui.selected); break;
       case 'advise': advise(); break;
+      case 'apply-update': applyUpdate(); break;
+      case 'install': promptInstall(); break;
       default: break;
     }
   } catch (e) {
@@ -158,3 +180,8 @@ if (location.hash.startsWith('#new') || location.hash.startsWith('#auto')) {
   store.updateSettings({ aiDelayMs: location.hash.startsWith('#auto') ? 0 : store.settings.aiDelayMs });
   store.newGame({ seed, humanSeat: location.hash.startsWith('#auto') ? -1 : 0 });
 }
+
+// Manifest-Shortcuts: ?action=new | resume
+const startAction = new URLSearchParams(location.search).get('action');
+if (startAction === 'new') store.newGame();
+else if (startAction === 'resume') store.checkSave().then((ok) => ok && store.load());

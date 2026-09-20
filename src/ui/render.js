@@ -39,7 +39,8 @@ export function renderStart(snap) {
       <label><input type="checkbox" data-setting="confirmDiscard" ${s.confirmDiscard ? 'checked' : ''}> ${t('confirmDiscard')}</label>
       <label><input type="checkbox" data-setting="showChance" ${s.showChance ? 'checked' : ''}> ${t('chance')} %</label>
     </details>
-    <p class="muted small">${t('version')} 0.1 · CC0-Steine von FluffyStuff</p>
+    ${snap.pwa?.canInstall ? `<p><button class="btn" data-action="install">${t('install')}</button></p>` : ''}
+    <p class="muted small">${t('version')} ${snap.pwa?.version ? snap.pwa.version : '0.1'} · CC0-Steine von FluffyStuff</p>
   </section>`;
 }
 

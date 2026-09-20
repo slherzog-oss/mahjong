@@ -68,6 +68,9 @@ export const de = {
   exportGame: 'Spielstand exportieren',
   importGame: 'Spielstand importieren',
   suitNames: ['Bambus', 'Kreise', 'Zeichen'],
+  updateReady: 'Update bereit.',
+  reload: 'Neu laden',
+  install: 'App installieren',
   alternatives: 'Alternativen',
   danger: 'Gefahr',
   adv: {

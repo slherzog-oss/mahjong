@@ -48,6 +48,8 @@ h1, h2 { margin: 0.2em 0; }
 .stack { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 16px auto; }
 .row { display: flex; gap: 8px; justify-content: center; }
 
+.banner { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 12px; background: var(--accent); color: var(--accent-text); }
+
 /* Start */
 .screen.start { text-align: center; padding: 48px 16px; max-width: 480px; margin: 0 auto; }
 .settings { text-align: left; margin-top: 24px; background: var(--panel); border-radius: var(--radius); padding: 8px 12px; }

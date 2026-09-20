@@ -10,6 +10,7 @@ Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 - `src/analysis` — Shanten, Ukeire, Fertigstellungschance, siehe `docs/ANALYSIS.md`
 - `src/ai` — KI-Gegner (easy/medium/hard) und Zug-Schleife, siehe `docs/AI.md`
 - `src/ui`, `src/store` — Oberfläche, Store mit Undo und Autosave, siehe `docs/UI.md`
+- `manifest.webmanifest`, `sw.js`, `src/ui/pwa.js` — installierbare PWA, siehe `docs/PWA.md`
 - `tests` — Unit-Tests (`npm test`, Node >= 20, keine Abhängigkeiten)
 
 ## Entwicklung
@@ -17,4 +18,5 @@ Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 ```sh
 npm test          # alle Tests
 npm run serve     # statischer Server auf http://localhost:8080
+npm run build:sw  # Precache-Liste für den Service Worker neu erzeugen
 ```
