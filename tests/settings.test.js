@@ -114,7 +114,7 @@ test('Voreinstellungen je Variante und Variantenwechsel im Store', () => {
   const store = createStore({ storage: memStorage(), persistence: memoryAdapter() });
   store.setRule('variant', 'riichi');
   assert.equal(store.settings.preset, 'riichi');
-  assert.equal(store.settings.rules.startScore, 25000);
+  assert.equal(store.settings.rules.startScore, 0);
   store.setRule('redFives', false);
   assert.equal(store.settings.preset, 'custom');
   store.updateSettings({ aiDelayMs: 0 });

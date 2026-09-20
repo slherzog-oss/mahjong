@@ -1,6 +1,6 @@
 // Generiert von scripts/build-sw-manifest.js – nicht von Hand bearbeiten.
 self.__PRECACHE = {
-  "version": "cc108bba1119",
+  "version": "a7cd224fc574",
   "files": [
     "icons/apple-touch-icon.png",
     "icons/icon-192.png",

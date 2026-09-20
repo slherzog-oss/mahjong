@@ -86,16 +86,20 @@ export function renderLexicon(ui) {
 
 /** Panel "Mögliche Blätter": Formen mit Chance, Wert, Erwartung, Zielwahl. */
 export function renderFormsPanel(forms, { target, expanded, showKinds, variant = 'classical' }) {
+  const lex = fullLexicon(variant);
   const rows = forms.slice(0, 7).map((f) => {
     const name = formName(f.form, variant);
     const active = target === f.form;
     const pct = Math.round(f.chance * 100);
-    const dist = f.shanten < 0 ? t('complete') : f.shanten === 0 ? t('ready') : `${t('shanten')} ${f.shanten}`;
+    const dist = f.shanten < 0 ? t('complete') : f.shanten === 0 ? t('ready') : t('forms.away', { n: f.shanten + 1 });
+    const entry = lex.find((e) => e.form === f.form && e.text) ?? lex.find((e) => e.id === f.lexicon);
+    const desc = entry ? String(L(entry.text)).split(/(?<=[.!?])\s/)[0] : '';
     return `
     <div class="form-row${active ? ' active' : ''}${showKinds === f.form ? ' selected' : ''}" data-action="form-select" data-form="${f.form}">
       <div class="form-bar" style="--pct:${pct}%"></div>
       <span class="form-name">${esc(name)}</span>
-      <span class="form-stats"><b>${pct} %</b> · ${dist} · ${f.ukeire} ${t('tilesLeft')} · ${t('forms.value')} ${f.value}</span>
+      <span class="form-stats"><b>${pct} %</b> ${t('forms.chance')} · ${dist} · ${f.ukeire} ${t('forms.useful')} · ${t('forms.value')} ${f.value}</span>
+      ${desc ? `<span class="form-desc">${esc(desc)}</span>` : ''}
       <button class="btn tiny${active ? ' primary' : ''}" data-action="${active ? 'clear-target' : 'set-target'}" data-form="${f.form}">${active ? t('forms.targetActive') : t('forms.target')}</button>
     </div>`;
   }).join('');
