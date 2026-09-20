@@ -1,18 +1,18 @@
 // Analyse-Bildschirm: Partienliste, Zusammenfassung, Chancen-Kurve, Entscheidungen.
 import { KIND_NAMES } from '../core/tiles.js';
 import { tileHtml } from './tiles.js';
-import { t } from '../i18n/de.js';
+import { t, getLanguage } from '../i18n/index.js';
 import { CLASSES } from '../replay/analyzer.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pct = (x) => `${Math.round((x ?? 0) * 100)} %`;
-const fmtDate = (ms) => new Date(ms).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+const fmtDate = (ms) => new Date(ms).toLocaleString(getLanguage() === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
 export function renderAnalysisList(ui) {
   const { games, current } = ui.analysis;
   const rows = (games ?? []).map((g) => `
     <button class="btn row-btn" data-action="analysis-open" data-id="${esc(g.id)}">
-      <span>${fmtDate(g.finishedAt)} · ${g.hands} ${t('hand')}${g.hands === 1 ? '' : 'e'}</span>
+      <span>${fmtDate(g.finishedAt)} · ${g.hands} ${t('hand')}${g.hands === 1 ? '' : (getLanguage() === 'de' ? 'e' : 's')}</span>
       <span class="muted">${g.scores.map((s, i) => (i === g.humanSeat ? `<b>${s}</b>` : s)).join(' · ')}</span>
     </button>`).join('');
   return `

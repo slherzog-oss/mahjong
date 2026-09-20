@@ -9,7 +9,8 @@ import { lexiconById } from '../lexicon/hands.js';
 import { parseKinds } from '../core/tiles.js';
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
 import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
-import { t } from '../i18n/de.js';
+import { t, setLanguage, setOverrides } from '../i18n/index.js';
+import { renderTutorial } from './tutorial.js';
 import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, keepAwake, vibrate, isStandalone } from './pwa.js';
 
 const root = document.getElementById('app');
@@ -43,12 +44,19 @@ function requestMonteCarlo(snap) {
   mc.worker.postMessage({ id: mc.pending, type: 'mc', state: plain, seat: humanSeat, runs: 200 });
 }
 const store = createStore({ persistence: defaultAdapter() });
+function applySettingsToI18n(settings) {
+  setLanguage(settings.language);
+  setOverrides({ playerNames: [t('you'), ...settings.playerNames] });
+}
+applySettingsToI18n(store.settings);
 store.checkSave();
-const ui = { selected: null, legal: [], advice: null, screen: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null, analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null } };
+const ui = { selected: null, legal: [], advice: null, screen: null, tutorial: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null, analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null } };
 let lastPhaseKey = '';
 
 function render(snap) {
   const { state } = snap;
+  applySettingsToI18n(snap.settings);
+  document.body.classList.toggle('no-anim', !snap.settings.animations);
   ui.legal = state ? store.legalActions() : [];
   ui.pwa = { updateReady: pwa.updateReady, canInstall: !!pwa.installPrompt && !isStandalone(), version: pwa.version };
   let html;
@@ -60,8 +68,16 @@ function render(snap) {
   else if (state.phase === 'handOver') html = renderHandOver(snap);
   else html = renderGame(snap, ui);
   ui.mc = mc.key && state && mc.key === `${state.seed}:${state.handNumber}:${state.log.length}` ? mc.result : null;
-  root.innerHTML = renderBanner(ui.pwa) + html;
+  const showTutorial = ui.tutorial !== null && ui.tutorial !== undefined ? ui.tutorial >= 0 : (!snap.settings.tutorialDone && !state && !ui.screen);
+  if (showTutorial && (ui.tutorial === null || ui.tutorial === undefined)) ui.tutorial = 0;
+  root.innerHTML = renderBanner(ui.pwa) + html + (ui.tutorial >= 0 ? renderTutorial(ui.tutorial) : '');
   requestMonteCarlo(snap);
+  // Lernmodus: Empfehlung automatisch nach jedem eigenen Zug
+  if (snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== key(state)) {
+    ui.learnKey = key(state);
+    ui.formsOpen = true;
+    advise();
+  }
   const inHand = !!state && !['handOver', 'gameOver', 'idle'].includes(state.phase);
   pwa.wantAwake = inHand;
   keepAwake(inHand);
@@ -164,6 +180,9 @@ root.addEventListener('click', (ev) => {
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
       case 'lexicon': ui.screen = 'lexicon'; render(snap); break;
+      case 'tutorial-start': ui.tutorial = 0; render(snap); break;
+      case 'tutorial-next': ui.tutorial = (ui.tutorial ?? 0) + 1; render(snap); break;
+      case 'tutorial-skip': case 'tutorial-done': ui.tutorial = -1; store.updateSettings({ tutorialDone: true }); break;
       case 'analysis-list': case 'analysis': openAnalysisList(snap); break;
       case 'analysis-close': ui.screen = null; render(snap); break;
       case 'analysis-current': runAnalysis({ seed: snap.state.seed, ruleSet: snap.state.ruleSet, humanSeat: snap.humanSeat, actions: snap.state.actions }); break;
@@ -181,7 +200,7 @@ root.addEventListener('click', (ev) => {
         const entry = lexiconById(btn.dataset.id);
         if (!entry?.example) break;
         ui.screen = null;
-        ui.practice = t('practiceHint', { name: entry.name.de });
+        ui.practice = t('practiceHint', { name: entry.name[store.settings.language] ?? entry.name.de });
         ui.formsOpen = true;
         store.newPractice(parseKinds(entry.example), { target: entry.form ?? null });
         break;
@@ -255,11 +274,27 @@ root.addEventListener('change', (ev) => {
     file.files[0].text().then((text) => store.importSave(text)).catch((e) => alert(e.message));
     return;
   }
+  const preset = ev.target.closest('[data-action="preset"]');
+  if (preset) { if (preset.value !== 'custom') store.applyPreset(preset.value); return; }
+  const rule = ev.target.closest('[data-rule]');
+  if (rule) {
+    let value = rule.type === 'checkbox' ? rule.checked : rule.value;
+    if (['limit', 'deadWallSize', 'maxChows', 'startScore'].includes(rule.dataset.rule)) value = Number(value);
+    store.setRule(rule.dataset.rule, value);
+    return;
+  }
+  const nameEl = ev.target.closest('[data-player-name]');
+  if (nameEl) {
+    const names = [...store.settings.playerNames];
+    names[Number(nameEl.dataset.playerName)] = nameEl.value.trim() || names[Number(nameEl.dataset.playerName)];
+    store.updateSettings({ playerNames: names });
+    return;
+  }
   const el = ev.target.closest('[data-setting]');
   if (!el) return;
   const key = el.dataset.setting;
   let value = el.type === 'checkbox' ? el.checked : el.value;
-  if (['rounds', 'limit', 'aiDelayMs'].includes(key)) value = Number(value);
+  if (['rounds', 'aiDelayMs'].includes(key)) value = Number(value);
   store.updateSettings({ [key]: value });
 });
 

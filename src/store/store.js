@@ -8,6 +8,7 @@
 import { createGame, applyAction, applyPayments, seatsToAct, getLegalActions, rigDeal } from '../core/state.js';
 import { nextInt } from '../core/rng.js';
 import { NUM_KINDS, countsFromKinds } from '../core/tiles.js';
+import { RULE_PRESETS, RULE_FIELDS } from '../core/presets.js';
 import { createRuleSet } from '../core/rules.js';
 import { stepAI } from '../ai/runner.js';
 import { scoreRound } from '../scoring/millington.js';
@@ -18,16 +19,30 @@ export const SAVE_VERSION = 1;
 export const SETTINGS_KEY = 'mahjong.settings.v1';
 
 export const DEFAULT_SETTINGS = {
+  language: 'de',
   difficulty: 'medium',
   rounds: 1,
-  bonusTiles: false,
-  sevenPairs: false,
-  limit: 500,
+  preset: 'millington',
+  rules: { ...RULE_PRESETS.millington },
+  playerNames: ['Mei', 'Jun', 'Lan'],
   confirmDiscard: true,
   aiDelayMs: 450,
   showChance: true,
   showForms: true,
+  animations: true,
+  learnMode: false,
+  tutorialDone: false,
 };
+
+/** Alte Einstellungen (flache Regelfelder) auf das aktuelle Format bringen. */
+function normalizeSettings(s) {
+  const out = { ...DEFAULT_SETTINGS, ...s };
+  out.rules = { ...RULE_PRESETS.millington, ...(s.rules ?? {}) };
+  for (const k of ['bonusTiles', 'sevenPairs', 'limit']) if (s[k] !== undefined && s.rules === undefined) out.rules[k] = s[k];
+  delete out.bonusTiles; delete out.sevenPairs; delete out.limit;
+  if (!Array.isArray(out.playerNames) || out.playerNames.length !== 3) out.playerNames = [...DEFAULT_SETTINGS.playerNames];
+  return out;
+}
 
 /**
  * @param storage  synchroner Speicher für Einstellungen (localStorage-artig) oder null
@@ -47,7 +62,7 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
   function loadSettings() {
     try {
       const raw = storage?.getItem(SETTINGS_KEY);
-      return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+      return raw ? normalizeSettings(JSON.parse(raw)) : normalizeSettings({});
     } catch {
       return { ...DEFAULT_SETTINGS };
     }
@@ -158,8 +173,21 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
     get settings() { return settings; },
     updateSettings(patch) {
       settings = { ...settings, ...patch };
+      if (patch.rules) settings.rules = { ...settings.rules, ...patch.rules };
       saveSettings();
       emit();
+    },
+    /** Eine Regeloption setzen; Voreinstellung wird zu 'custom', wenn sie nicht mehr passt. */
+    setRule(key, value) {
+      if (!RULE_FIELDS.includes(key)) return;
+      const rules = { ...settings.rules, [key]: value };
+      const preset = Object.entries(RULE_PRESETS).find(([, p]) => RULE_FIELDS.every((k) => p[k] === rules[k]))?.[0] ?? 'custom';
+      api.updateSettings({ rules, preset });
+    },
+    applyPreset(name) {
+      const p = RULE_PRESETS[name];
+      if (!p) return;
+      api.updateSettings({ rules: { ...p }, preset: name });
     },
     hasSave() { return hasSave; },
     /** Prüft, ob ein Spielstand existiert (für den Startbildschirm). */
@@ -217,12 +245,7 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
     /** Wartet, bis ausstehende Schreibvorgänge fertig sind (Tests, Seitenwechsel). */
     flush() { return writing ?? Promise.resolve(); },
     newGame({ seed = Date.now(), humanSeat = 0 } = {}) {
-      const ruleSet = createRuleSet({
-        rounds: settings.rounds,
-        bonusTiles: settings.bonusTiles,
-        sevenPairs: settings.sevenPairs,
-        limit: settings.limit,
-      });
+      const ruleSet = createRuleSet({ ...settings.rules, rounds: settings.rounds });
       history = [];
       lastScore = null;
       state = createGame({ seed, ruleSet, humanSeat });

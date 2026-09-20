@@ -1,6 +1,6 @@
 // Klartext-Begründungen für den Berater (Deutsch über i18n).
 import { KIND_NAMES, SUITS } from '../core/tiles.js';
-import { t } from '../i18n/de.js';
+import { t } from '../i18n/index.js';
 
 const suitName = (s) => t('suitNames')[s] ?? SUITS[s];
 

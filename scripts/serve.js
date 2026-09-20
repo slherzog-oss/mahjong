@@ -17,7 +17,14 @@ const types = {
 };
 
 createServer(async (req, res) => {
-  let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  const url = new URL(req.url, 'http://x');
+  // Dev-Hilfe: /__delay?ms=3000 antwortet verzögert (hält das load-Ereignis für Tests)
+  if (url.pathname === '/__delay') {
+    const ms = Math.min(30000, Number(url.searchParams.get('ms') || 1000));
+    setTimeout(() => res.writeHead(200, { 'Content-Type': 'image/svg+xml' }).end('<svg xmlns="http://www.w3.org/2000/svg"/>'), ms);
+    return;
+  }
+  let path = decodeURIComponent(url.pathname);
   if (path.endsWith('/')) path += 'index.html';
   const file = normalize(join(root, path));
   if (!file.startsWith(root)) {

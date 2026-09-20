@@ -3,7 +3,9 @@ import { parseKinds, KIND_NAMES } from '../core/tiles.js';
 import { LEXICON, CATEGORIES } from '../lexicon/hands.js';
 import { SCORE_RULES } from '../scoring/table.js';
 import { tileHtml } from './tiles.js';
-import { t } from '../i18n/de.js';
+import { t, getLanguage } from '../i18n/index.js';
+
+const L = (obj) => (obj ? (obj[getLanguage()] ?? obj.de ?? '') : '');
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -18,7 +20,7 @@ function worth(entry) {
 export function lexiconEntries({ query = '', category = 'all' } = {}) {
   const q = query.trim().toLowerCase();
   return LEXICON.filter((e) => (category === 'all' || e.category === category))
-    .filter((e) => !q || [e.name.de, e.name.en, e.text.de, e.tip?.de ?? ''].join(' ').toLowerCase().includes(q));
+    .filter((e) => !q || [e.name.de, e.name.en, e.text.de, e.text.en ?? '', e.tip?.de ?? '', e.tip?.en ?? ''].join(' ').toLowerCase().includes(q));
 }
 
 export function renderLexicon(ui) {
@@ -31,14 +33,14 @@ export function renderLexicon(ui) {
     return `
     <article class="lex-card${open ? ' open' : ''}" data-id="${e.id}">
       <button class="lex-head" data-action="lexicon-toggle" data-id="${e.id}" aria-expanded="${open}">
-        <span class="lex-name">${esc(e.name.de)} <span class="muted small">${esc(e.name.en)}</span></span>
+        <span class="lex-name">${esc(L(e.name))} <span class="muted small">${esc(getLanguage() === 'de' ? e.name.en : e.name.de)}</span></span>
         <span class="lex-worth">${worth(e)}</span>
         <span class="lex-rarity" title="${t('lex.rarity')}">${'●'.repeat(e.rarity)}${'○'.repeat(5 - e.rarity)}</span>
       </button>
       ${open ? `<div class="lex-body">
-        <p>${esc(e.text.de)}</p>
+        <p>${esc(L(e.text))}</p>
         ${example}
-        ${e.tip ? `<p class="lex-tip"><b>${t('lex.tip')}:</b> ${esc(e.tip.de)}</p>` : ''}
+        ${e.tip ? `<p class="lex-tip"><b>${t('lex.tip')}:</b> ${esc(L(e.tip))}</p>` : ''}
         <p class="muted small">${e.standard ? t('lex.standard') : t('lex.optional')}</p>
         ${e.example ? `<button class="btn small primary" data-action="practice" data-id="${e.id}">${t('lex.practice')}</button>` : ''}
       </div>` : ''}

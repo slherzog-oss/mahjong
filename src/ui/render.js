@@ -2,13 +2,15 @@
 import { kindOf, sortTiles, KIND_NAMES } from '../core/tiles.js';
 import { seatWind, seatsToAct } from '../core/state.js';
 import { tileHtml, tileHtmlById, backHtml } from './tiles.js';
-import { t } from '../i18n/de.js';
+import { t } from '../i18n/index.js';
 import { ruleLabel } from '../scoring/table.js';
 import { shanten } from '../analysis/shanten.js';
 import { ukeire, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
 import { completionChance, drawsLeftFor } from '../analysis/probability.js';
 import { analyzeForms, formKeepKinds } from '../analysis/forms.js';
 import { renderFormsPanel } from './lexicon.js';
+import { RULE_PRESETS, RULE_FIELDS } from '../core/presets.js';
+import { LANGUAGES, getLanguage } from '../i18n/index.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -30,19 +32,42 @@ export function renderStart(snap) {
     </div>
     <details class="settings">
       <summary>${t('settings')}</summary>
+      <label>${t('language')}
+        <select data-setting="language">${LANGUAGES.map((l) => `<option value="${l.id}" ${s.language === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></label>
       <label>${t('difficulty')}
         <select data-setting="difficulty">
           ${['easy', 'medium', 'hard'].map((d) => `<option value="${d}" ${s.difficulty === d ? 'selected' : ''}>${t('difficulties.' + d)}</option>`).join('')}
         </select></label>
       <label>${t('rounds')}
         <select data-setting="rounds">${[1, 2, 4].map((r) => `<option value="${r}" ${s.rounds === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      <label>${t('limit')}
-        <select data-setting="limit">${[500, 1000].map((r) => `<option value="${r}" ${s.limit === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
-      <label><input type="checkbox" data-setting="bonusTiles" ${s.bonusTiles ? 'checked' : ''}> ${t('bonusTiles')}</label>
-      <label><input type="checkbox" data-setting="sevenPairs" ${s.sevenPairs ? 'checked' : ''}> ${t('sevenPairs')}</label>
+      <label>${t('aiDelay')}
+        <select data-setting="aiDelayMs">${[0, 250, 450, 900].map((v) => `<option value="${v}" ${s.aiDelayMs === v ? 'selected' : ''}>${t('aiDelays.' + v)}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-setting="confirmDiscard" ${s.confirmDiscard ? 'checked' : ''}> ${t('confirmDiscard')}</label>
       <label><input type="checkbox" data-setting="showChance" ${s.showChance ? 'checked' : ''}> ${t('chance')} %</label>
       <label><input type="checkbox" data-setting="showForms" ${s.showForms ? 'checked' : ''}> ${t('forms.title')}</label>
+      <label><input type="checkbox" data-setting="learnMode" ${s.learnMode ? 'checked' : ''}> ${t('learnMode')}</label>
+      <p class="muted small">${t('learnModeHint')}</p>
+      <label><input type="checkbox" data-setting="animations" ${s.animations ? 'checked' : ''}> ${t('animations')}</label>
+      <div class="names">
+        <span>${t('playerNamesLabel')}</span>
+        ${s.playerNames.map((n, i) => `<input type="text" maxlength="12" value="${esc(n)}" data-player-name="${i}" aria-label="${t('playerNamesLabel')} ${i + 1}">`).join('')}
+      </div>
+      <button class="btn small" data-action="tutorial-start">${t('tutorialAgain')}</button>
+    </details>
+    <details class="settings">
+      <summary>${t('rules')}</summary>
+      <label>${t('preset')}
+        <select data-action="preset">${[...Object.keys(RULE_PRESETS), 'custom'].map((p) => `<option value="${p}" ${s.preset === p ? 'selected' : ''}>${t('presets.' + p)}</option>`).join('')}</select></label>
+      <label>${t('limit')}
+        <select data-rule="limit">${[500, 1000].map((r) => `<option value="${r}" ${s.rules.limit === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+      <label>${t('rule.deadWallSize')}
+        <select data-rule="deadWallSize">${[14, 16].map((r) => `<option value="${r}" ${s.rules.deadWallSize === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+      <label>${t('rule.maxChows')}
+        <select data-rule="maxChows">${[1, 2, 4].map((r) => `<option value="${r}" ${s.rules.maxChows === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+      <label>${t('rule.startScore')}
+        <select data-rule="startScore">${[1000, 2000, 5000].map((r) => `<option value="${r}" ${s.rules.startScore === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+      ${['bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'discarderPaysAll', 'losersPayEachOther', 'eastDoubles', 'loserHandDoubles', 'refillDeadWall', 'robKongForThirteenOrphans']
+        .map((k) => `<label><input type="checkbox" data-rule="${k}" ${s.rules[k] ? 'checked' : ''}> ${t('rule.' + k) !== 'rule.' + k ? t('rule.' + k) : t(k)}</label>`).join('')}
     </details>
     ${snap.pwa?.canInstall ? `<p><button class="btn" data-action="install">${t('install')}</button></p>` : ''}
     <p class="muted small">${t('version')} ${snap.pwa?.version ? snap.pwa.version : '0.1'} · CC0-Steine von FluffyStuff</p>
@@ -260,7 +285,7 @@ export function renderHandOver(snap) {
   const sheets = lastScore?.sheets;
   const rows = state.players.map((p, i) => {
     const sh = sheets?.[i];
-    const lines = sh ? sh.lines.map((l) => `<li>${esc(ruleLabel(l.id))}${l.kinds ? ' ' + l.kinds.map((k) => tileHtml(k, { classes: 'tiny' })).join('') : ''} <span class="muted">${l.kind === 'points' ? l.value : l.kind === 'double' ? '×2' : t('limitHand')}</span></li>`).join('') : '';
+    const lines = sh ? sh.lines.map((l) => `<li>${esc(ruleLabel(l.id, getLanguage()))}${l.kinds ? ' ' + l.kinds.map((k) => tileHtml(k, { classes: 'tiny' })).join('') : ''} <span class="muted">${l.kind === 'points' ? l.value : l.kind === 'double' ? '×2' : t('limitHand')}</span></li>`).join('') : '';
     const hand = [...p.melds.flatMap((m) => m.tiles), ...sortTiles(p.hand)];
     return `
     <div class="sheet${sh?.winner ? ' winner' : ''}">
