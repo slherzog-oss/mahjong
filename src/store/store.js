@@ -91,6 +91,8 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
         scores: state.players.map((p) => p.score),
         hands: state.handNumber,
         log: state.log,
+        actions: state.actions,
+        payments: state.log.filter((e) => e.type === 'payments').map((e) => e.payments),
       });
     } catch (e) {
       console.warn('Archivieren fehlgeschlagen', e);

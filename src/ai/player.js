@@ -7,11 +7,15 @@
 //   'medium'  Shanten/Ukeire, ruft nur bei Shanten-Gewinn, einfache Defensive spät im Spiel
 //   'hard'    wie medium mit stärkerer Defensive und Wertgewichtung (Ausbau in Stufe 2)
 
-import { kindOf, countsFromKinds, isHonour, isTerminal, NUM_KINDS } from '../core/tiles.js';
+import { kindOf, countsFromKinds } from '../core/tiles.js';
 import { getLegalActions } from '../core/state.js';
 import { shanten } from '../analysis/shanten.js';
 import { discardOptions, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
+import { evaluateDiscards } from '../analysis/evaluate.js';
+import { dangerOf } from '../analysis/danger.js';
 import { nextFloat, nextInt } from '../core/rng.js';
+
+export { dangerOf };
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
@@ -25,11 +29,13 @@ export const AI_PARAMS = {
     mistakeRate: 0.05, // Anteil bewusst zweitbester Abwürfe
   },
   hard: {
-    chowMaxShanten: 2,
-    keepConcealedUntil: 3,
+    chowMaxShanten: 3,
+    keepConcealedUntil: 2,
     dangerWeight: 1.0,
     ukeireTolerance: 0.85,
     mistakeRate: 0,
+    // Schwer bewertet Abwürfe über evaluateDiscards (Chance, Wert, Gefahr)
+    evalWeights: { valueWeight: 0.08, flushWeight: 0.15, dangerWeight: 0.9, honourPairBonus: 0.03 },
   },
 };
 
@@ -73,24 +79,6 @@ function progress(state) {
   return 1 - state.wall.living.length / total;
 }
 
-/**
- * Gefahr eines Abwurfs 0..1: unsichtbare Kopien (mehr Kopien draußen = gefährlicher),
- * Honours/Endsteine spät im Spiel sicherer, Steine in Farben, die Gegner mit
- * offenen Sätzen sammeln, gefährlicher.
- */
-export function dangerOf(state, seat, kind, remaining) {
-  let d = remaining[kind] / 4; // 0 = alle Kopien sichtbar → sicher
-  if (isHonour(kind)) d *= 0.5;
-  else if (isTerminal(kind)) d *= 0.8;
-  for (const p of state.players) {
-    if (p.seat === seat || p.melds.length === 0) continue;
-    const suits = new Set(p.melds.flatMap((m) => m.kinds).filter((k) => k < 27).map((k) => Math.floor(k / 9)));
-    if (kind < 27 && suits.size === 1 && suits.has(Math.floor(kind / 9)) && p.melds.length >= 2) d += 0.3;
-    // Ein Gegner mit vielen offenen Sätzen ist nahe am Gewinn
-    d += 0.1 * p.melds.length;
-  }
-  return Math.min(1, d);
-}
 
 // ---------- Anfänger ----------
 
@@ -125,6 +113,11 @@ function smartDiscard(state, seat, legal, rng, difficulty) {
     for (let i = 0; i < n; i++) rest.splice(rest.indexOf(a.kind), 1);
     const after = shanten(rest, a.variant === 'concealed' ? melds + 1 : melds, rs).min;
     if (after <= current) return a;
+  }
+
+  if (P.evalWeights) {
+    const { options } = evaluateDiscards(state, seat, P.evalWeights);
+    return discardActionFor(legal, options[0].kind) ?? legal.find((a) => a.type === 'discard');
   }
 
   const opts = discardOptions(kinds, melds, rs, remaining);

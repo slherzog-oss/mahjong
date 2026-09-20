@@ -63,6 +63,7 @@ export function createGame({ seed = Date.now(), ruleSet = createRuleSet(), human
     firstDiscardDone: false, // für Earthly Hand
     result: null, // { type: 'win'|'draw', ... }
     log: [], // Protokoll (siehe logEvent)
+    actions: [], // alle angewandten Aktionen (Replay: createGame + actions)
   };
 }
 
@@ -232,6 +233,7 @@ export function applyAction(prev, action) {
   const state = clone(prev);
   const { type } = action;
   const seat = action.seat;
+  state.actions.push(action);
 
   switch (type) {
     case 'startHand':
@@ -576,6 +578,19 @@ function endHand(state) {
   state.result = null;
   state.phase = state.roundWind >= rs.rounds ? 'gameOver' : 'idle';
   if (state.phase === 'gameOver') logEvent(state, { type: 'game_over', scores: state.players.map((p) => p.score) });
+}
+
+/**
+ * Replay: wendet eine Aktionsliste auf ein frisches Spiel an.
+ * onStep(state, action, index) wird nach jeder Aktion aufgerufen.
+ */
+export function replay({ seed, ruleSet, humanSeat = 0, actions }, onStep = null) {
+  let s = createGame({ seed, ruleSet, humanSeat });
+  actions.forEach((a, i) => {
+    s = applyAction(s, a);
+    onStep?.(s, a, i);
+  });
+  return s;
 }
 
 /** Punkte nach einer Hand verbuchen (Zahlungsmatrix aus dem Scoring-Modul). */

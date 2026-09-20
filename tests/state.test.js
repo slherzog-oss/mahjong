@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, applyAction, getLegalActions, seatsToAct, seatWind, IllegalAction, viewFor } from '../src/core/state.js';
+import { createGame, applyAction, getLegalActions, seatsToAct, seatWind, IllegalAction, viewFor, replay } from '../src/core/state.js';
 import { kindOf, parseKinds, countsFromIds, allTileIds } from '../src/core/tiles.js';
 import { createRuleSet } from '../src/core/rules.js';
 import { createRngState } from '../src/core/rng.js';
@@ -265,4 +265,15 @@ test('Komplette Partien über mehrere Hände bis gameOver', () => {
     assert.equal(s.log.filter((e) => e.type === 'start_hand').length, 4);
     assert.equal(s.log.filter((e) => e.type === 'end_hand').length, 4);
   }
+});
+
+test('Replay aus Seed und Aktionsliste reproduziert den Zustand', () => {
+  const rng = createRngState('replay');
+  let s = createGame({ seed: 'replay-1', ruleSet: createRuleSet({ rounds: 1 }) });
+  s = applyAction(s, { type: 'startHand' });
+  s = playRandomHand(s, rng);
+  const r = replay({ seed: 'replay-1', ruleSet: s.ruleSet, humanSeat: 0, actions: s.actions });
+  assert.deepEqual(r.players, s.players);
+  assert.deepEqual(r.log, s.log);
+  assert.equal(r.phase, s.phase);
 });

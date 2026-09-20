@@ -1,44 +1,12 @@
 // Berater: Empfehlung auf Zuruf (PLAN.md Abschnitt 8).
 // Reine Logik; Texte kommen aus explain.js.
 
-import { kindOf, isHonour, isDragon, isWind, isSuited, suitOf, windIndex, countsFromKinds, NUM_KINDS } from '../core/tiles.js';
-import { seatWind } from '../core/state.js';
+import { kindOf, countsFromKinds } from '../core/tiles.js';
+import { seatWind, getLegalActions } from '../core/state.js';
 import { shanten } from '../analysis/shanten.js';
-import { discardOptions, visibleCounts, remainingCounts, ukeire } from '../analysis/ukeire.js';
-import { completionChance, drawsLeftFor } from '../analysis/probability.js';
-import { dangerOf, AI_PARAMS } from '../ai/player.js';
-import { getLegalActions } from '../core/state.js';
+import { evaluateDiscards, valuePotential } from '../analysis/evaluate.js';
 
-/**
- * Wertpotenzial einer Hand (grob): zählt Verdopplungsquellen, die sich anbahnen.
- * Liefert { doubles, flush: null|'half'|'full', suit, honourSets }.
- */
-export function valuePotential(kinds, melds, seatW, roundW) {
-  const all = [...kinds, ...melds.flatMap((m) => m.kinds)];
-  const counts = countsFromKinds(all);
-  let doubles = 0;
-  let honourSets = 0;
-  for (let k = 27; k < NUM_KINDS; k++) {
-    if (counts[k] >= 2) {
-      if (isDragon(k)) { doubles += 1; honourSets++; }
-      else if (isWind(k)) {
-        const w = windIndex(k);
-        if (w === seatW || w === roundW) { doubles += (w === seatW ? 1 : 0) + (w === roundW ? 1 : 0); honourSets++; }
-      }
-    }
-  }
-  const suits = [0, 0, 0];
-  let honours = 0;
-  for (const k of all) {
-    if (isSuited(k)) suits[suitOf(k)]++;
-    else if (isHonour(k)) honours++;
-  }
-  const maxSuit = Math.max(...suits);
-  const suit = suits.indexOf(maxSuit);
-  let flush = null;
-  if (maxSuit + honours === all.length && maxSuit >= 9) flush = honours ? 'half' : 'full';
-  return { doubles, flush, suit, suitShare: maxSuit / Math.max(1, all.length), honourSets };
-}
+export { valuePotential };
 
 /**
  * Empfehlung für den Abwurf. Liefert
@@ -49,43 +17,10 @@ export function adviseDiscard(state, seat) {
   const p = state.players[seat];
   const kinds = p.hand.map(kindOf);
   const melds = p.melds.map((m) => ({ type: m.type, kinds: m.kinds, open: m.open }));
-  const rs = state.ruleSet;
-  const seatW = seatWind(state, seat);
-  const { visible, unseen } = visibleCounts(state, seat);
-  const remaining = remainingCounts(visible);
-  const drawsLeft = drawsLeftFor(state.wall.living.length);
-  const progress = 1 - state.wall.living.length / (136 - 53 - rs.deadWallSize);
-  const P = AI_PARAMS.hard;
-  const counts = countsFromKinds(kinds);
-
-  const options = discardOptions(kinds, melds.length, rs, remaining).map((o) => {
-    const rest = kinds.slice();
-    rest.splice(rest.indexOf(o.kind), 1);
-    const potential = valuePotential(rest, melds, seatW, state.roundWind);
-    const danger = dangerOf(state, seat, o.kind, remaining);
-    const chance = completionChance({ shanten: o.shanten, ukeireTotal: o.total, unseen, drawsLeft });
-    return {
-      ...o,
-      danger,
-      potential,
-      chance,
-      breaksPair: counts[o.kind] === 2,
-      breaksPung: counts[o.kind] >= 3,
-      visibleCopies: visible[o.kind],
-      honour: isHonour(o.kind),
-    };
-  });
-
-  // Gesamtscore: Fertigstellungschance, Wertpotenzial, Gefahr (spät gewichtet)
-  const bestChance = Math.max(...options.map((o) => o.chance), 1e-9);
-  for (const o of options) {
-    o.score = o.chance / bestChance + 0.08 * o.potential.doubles + (o.potential.flush ? 0.15 : 0) - P.dangerWeight * progress * o.danger;
-  }
-  options.sort((a, b) => a.shanten - b.shanten || b.score - a.score);
+  const { options, progress } = evaluateDiscards(state, seat);
   const best = options[0];
   const alternatives = options.slice(1, 3);
-
-  const hints = specialHandHints(kinds, melds, rs, seatW, state.roundWind);
+  const hints = specialHandHints(kinds, melds, state.ruleSet, seatWind(state, seat), state.roundWind);
   return { best, alternatives, options, hints, progress };
 }
 
