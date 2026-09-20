@@ -1,0 +1,123 @@
+:root {
+  --bg: #1d3b2a;
+  --felt: #245538;
+  --panel: rgba(0, 0, 0, 0.25);
+  --text: #f4f1ea;
+  --muted: rgba(244, 241, 234, 0.65);
+  --accent: #e3b341;
+  --accent-text: #1d1a12;
+  --danger: #d9534f;
+  --ok: #6fcf7a;
+  --tile-w: clamp(22px, calc((100vw - 36px) / 14.6), 56px);
+  --tile-small: 22px;
+  --radius: 10px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #2a6b47; --felt: #2f7a52; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  padding-top: var(--safe-t);
+}
+body.in-game { touch-action: manipulation; }
+h1, h2 { margin: 0.2em 0; }
+.muted { color: var(--muted); }
+.small { font-size: 0.85em; }
+
+.btn {
+  font: inherit;
+  padding: 10px 16px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  cursor: pointer;
+}
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+.btn.small { min-height: 36px; padding: 6px 12px; }
+.stack { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 16px auto; }
+
+/* Start */
+.screen.start { text-align: center; padding: 48px 16px; max-width: 480px; margin: 0 auto; }
+.settings { text-align: left; margin-top: 24px; background: var(--panel); border-radius: var(--radius); padding: 8px 12px; }
+.settings summary { cursor: pointer; padding: 6px 0; }
+.settings label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+.settings select { font: inherit; padding: 6px; border-radius: 6px; }
+
+/* Steine */
+.tile { display: inline-block; width: var(--tile-w); aspect-ratio: 3 / 4; position: relative; vertical-align: bottom; flex: 0 0 auto; }
+.tile img { width: 100%; height: 100%; display: block; border-radius: 4px; user-select: none; }
+.tile.small { width: var(--tile-small); }
+.tile.tiny { width: 18px; }
+.tile-bonus { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 700; color: #7a2f1f; font-size: 0.6em; }
+.tile.clickable { cursor: pointer; transition: transform 0.12s; }
+.tile.clickable:hover { transform: translateY(-4px); }
+.tile.selected { transform: translateY(-10px); outline: 3px solid var(--accent); outline-offset: -1px; border-radius: 5px; }
+.tile.advised img { box-shadow: 0 0 0 3px var(--ok); }
+.tile.last img { box-shadow: 0 0 0 3px var(--accent); }
+.tile.bonus img { filter: sepia(0.6); }
+.meld { display: inline-flex; gap: 1px; margin-right: 6px; }
+.meld .tile { width: calc(var(--tile-w) * 0.7); }
+.opp-melds .meld .tile { width: var(--tile-small); }
+
+/* Spiel */
+.screen.game { display: flex; flex-direction: column; min-height: 100dvh; max-width: 100vw; overflow-x: hidden; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: var(--panel); }
+.topbar .info { font-size: 0.9em; color: var(--muted); }
+.table { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--felt); }
+.opponents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.opponent { background: var(--panel); border-radius: var(--radius); padding: 6px; min-width: 0; }
+.opponent.acting, .me.acting { box-shadow: inset 0 0 0 2px var(--accent); }
+.opp-head, .me-head { display: flex; gap: 6px; align-items: baseline; font-size: 0.85em; flex-wrap: wrap; }
+.wind { font-weight: 700; color: var(--accent); }
+.name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opp-hand { display: flex; flex-wrap: wrap; gap: 0; margin: 4px 0; }
+.opp-hand .tile { width: 9px; }
+.opp-melds { display: flex; flex-wrap: wrap; gap: 4px; }
+.discards, .me-discards { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; min-height: calc(var(--tile-small) * 4 / 3); }
+.center { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 60px; }
+.status { text-align: center; color: var(--muted); }
+.status.acting { color: var(--text); font-weight: 600; }
+.last-discard .tile { width: calc(var(--tile-w) * 0.9); }
+.me { background: var(--panel); border-radius: var(--radius); padding: 8px; margin-top: auto; padding-bottom: calc(8px + var(--safe-b)); }
+.chance { margin-left: auto; color: var(--muted); }
+.chance b { color: var(--ok); }
+.hand { display: flex; align-items: flex-end; gap: 1px; padding: 12px 0 4px; overflow-x: auto; }
+.drawn { margin-left: 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 44px; }
+.actions .btn { display: inline-flex; align-items: center; gap: 4px; }
+.advice { margin-top: 8px; padding: 8px 10px; background: rgba(111, 207, 122, 0.15); border-left: 3px solid var(--ok); border-radius: 6px; }
+
+/* Handende */
+.screen.handover, .screen.gameover { padding: 16px; max-width: 720px; margin: 0 auto; }
+.sheet { background: var(--panel); border-radius: var(--radius); padding: 10px; margin: 10px 0; }
+.sheet.winner { box-shadow: inset 0 0 0 2px var(--accent); }
+.sheet-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.sheet-head .score { margin-left: auto; font-weight: 700; }
+.net.pos { color: var(--ok); }
+.net.neg { color: var(--danger); }
+.sheet-hand { display: flex; flex-wrap: wrap; gap: 2px; margin: 6px 0; }
+.lines { margin: 4px 0 0; padding-left: 18px; font-size: 0.9em; }
+.lines li { margin: 2px 0; }
+.ranking { padding-left: 24px; }
+.ranking li { display: flex; justify-content: space-between; max-width: 320px; padding: 6px 0; }
+
+/* Desktop */
+@media (min-width: 900px) {
+  :root { --tile-w: 52px; --tile-small: 26px; }
+  .table { flex-direction: row; flex-wrap: wrap; align-content: flex-start; }
+  .opponents { flex: 1 1 100%; }
+  .center { flex: 1 1 100%; }
+  .me { flex: 1 1 100%; }
+  .opp-hand .tile { width: 16px; }
+}

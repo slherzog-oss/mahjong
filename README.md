@@ -9,6 +9,7 @@ Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 - `src/scoring` — Scoring nach Millington mit Zahlungsmatrix, siehe `docs/SCORING.md`
 - `src/analysis` — Shanten, Ukeire, Fertigstellungschance, siehe `docs/ANALYSIS.md`
 - `src/ai` — KI-Gegner (easy/medium/hard) und Zug-Schleife, siehe `docs/AI.md`
+- `src/ui`, `src/store` — Oberfläche, Store mit Undo und Autosave, siehe `docs/UI.md`
 - `tests` — Unit-Tests (`npm test`, Node >= 20, keine Abhängigkeiten)
 
 ## Entwicklung
