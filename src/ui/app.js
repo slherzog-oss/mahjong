@@ -3,8 +3,7 @@ import { createStore } from '../store/store.js';
 import { defaultAdapter, requestPersistentStorage } from '../store/persistence.js';
 import { renderStart, renderGame, renderHandOver, renderGameOver } from './render.js';
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
-import { chooseAction } from '../ai/player.js';
-import { discardOptions, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
+import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
 import { t } from '../i18n/de.js';
 
 const root = document.getElementById('app');
@@ -45,22 +44,19 @@ function advise() {
   const { state, humanSeat } = snap;
   if (!state) return;
   const legal = store.legalActions();
-  if (legal.some((a) => a.type === 'mahjong')) {
-    ui.advice = { text: t('advisorMahjong') };
-  } else if (state.phase === 'discard') {
-    const p = state.players[humanSeat];
-    const kinds = p.hand.map(kindOf);
-    const { visible } = visibleCounts(state, humanSeat);
-    const opts = discardOptions(kinds, p.melds.length, state.ruleSet, remainingCounts(visible));
-    const best = opts[0];
+  if (state.phase === 'discard' && !legal.some((a) => a.type === 'mahjong')) {
+    const adv = adviseDiscard(state, humanSeat);
     ui.advice = {
-      kind: best.kind,
-      text: t('advisorHint', { tile: KIND_NAMES[best.kind], reason: t('advisorReasonUkeire', { shanten: best.shanten, ukeire: best.total }) }),
+      kind: adv.best.kind,
+      dangerKinds: adv.options.filter((o) => o.danger > 0.6 && adv.progress > 0.4).map((o) => o.kind),
+      lines: explainDiscard(adv),
+      hints: explainHints(adv.hints),
+      alternatives: adv.alternatives,
+      best: adv.best,
     };
-  } else if (state.phase === 'claiming') {
-    const a = chooseAction(state, humanSeat, { difficulty: 'hard' });
-    const label = a.type === 'pass' ? t('pass') : t(a.type);
-    ui.advice = { text: t('advisorClaim', { action: label }) };
+  } else if (state.phase === 'claiming' || legal.some((a) => a.type === 'mahjong')) {
+    const adv = state.phase === 'claiming' ? adviseClaim(state, humanSeat) : { action: { type: 'mahjong' }, reason: { key: 'mahjong' } };
+    ui.advice = { lines: explainClaim(adv), hints: [], action: adv.action.type };
   }
   render(store.getSnapshot());
 }

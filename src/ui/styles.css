@@ -97,7 +97,11 @@ h1, h2 { margin: 0.2em 0; }
 .drawn { margin-left: 10px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 44px; }
 .actions .btn { display: inline-flex; align-items: center; gap: 4px; }
-.advice { margin-top: 8px; padding: 8px 10px; background: rgba(111, 207, 122, 0.15); border-left: 3px solid var(--ok); border-radius: 6px; }
+.advice { margin-top: 8px; padding: 8px 10px; background: rgba(111, 207, 122, 0.15); border-left: 3px solid var(--ok); border-radius: 6px; font-size: 0.92em; }
+.advice p { margin: 4px 0; }
+.advice .hint { color: var(--accent); }
+.advice .alts .tile { vertical-align: middle; }
+.tile.dangerous img { box-shadow: 0 0 0 3px var(--danger); }
 
 /* Handende */
 .screen.handover, .screen.gameover { padding: 16px; max-width: 720px; margin: 0 auto; }

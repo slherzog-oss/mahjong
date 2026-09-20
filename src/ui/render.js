@@ -128,6 +128,7 @@ export function renderGame(snap, ui) {
       ui.selected === id ? 'selected' : '',
       acting && state.phase === 'discard' && discardable.has(k) ? 'clickable' : '',
       ui.advice?.kind === k ? 'advised' : '',
+      ui.advice?.dangerKinds?.includes(k) ? 'dangerous' : '',
     ].join(' ');
     return tileHtmlById(id, { classes: cls });
   };
@@ -159,10 +160,19 @@ export function renderGame(snap, ui) {
           ${drawn !== null ? `<span class="drawn">${tileBtn(drawn)}</span>` : ''}
         </div>
         <div class="actions">${actionsHtml(state, snap, legal, ui)}</div>
-        ${ui.advice?.text ? `<div class="advice">${esc(ui.advice.text)}</div>` : ''}
+        ${ui.advice ? adviceHtml(ui.advice) : ''}
       </div>
     </div>
   </section>`;
+}
+
+function adviceHtml(adv) {
+  const stat = (o) => `${tileHtml(o.kind, { classes: 'tiny' })} <span class="muted">${o.shanten < 0 ? t('complete') : `S${o.shanten}`} · ${o.total} · ${Math.round(o.chance * 100)}% · ${t('danger')} ${Math.round(o.danger * 100)}%</span>`;
+  return `<div class="advice">
+    ${(adv.lines ?? []).map((l) => `<p>${esc(l)}</p>`).join('')}
+    ${adv.alternatives?.length ? `<p class="alts"><b>${t('alternatives')}:</b> ${adv.alternatives.map(stat).join(' &nbsp; ')}</p>` : ''}
+    ${(adv.hints ?? []).map((h) => `<p class="hint">${esc(h)}</p>`).join('')}
+  </div>`;
 }
 
 function statusLine(state, snap, legal) {
