@@ -3,6 +3,8 @@ import { createStore } from '../store/store.js';
 import { defaultAdapter, requestPersistentStorage } from '../store/persistence.js';
 import { renderStart, renderGame, renderHandOver, renderGameOver } from './render.js';
 import { renderLexicon } from './lexicon.js';
+import { renderAnalysisList, renderAnalysis } from './analysis.js';
+import { analyzeGame } from '../replay/analyzer.js';
 import { lexiconById } from '../lexicon/hands.js';
 import { parseKinds } from '../core/tiles.js';
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
@@ -13,7 +15,7 @@ import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, ke
 const root = document.getElementById('app');
 const store = createStore({ persistence: defaultAdapter() });
 store.checkSave();
-const ui = { selected: null, legal: [], advice: null, screen: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null };
+const ui = { selected: null, legal: [], advice: null, screen: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null, analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null } };
 let lastPhaseKey = '';
 
 function render(snap) {
@@ -22,6 +24,8 @@ function render(snap) {
   ui.pwa = { updateReady: pwa.updateReady, canInstall: !!pwa.installPrompt && !isStandalone(), version: pwa.version };
   let html;
   if (ui.screen === 'lexicon') html = renderLexicon(ui);
+  else if (ui.screen === 'analysis-list') html = renderAnalysisList(ui);
+  else if (ui.screen === 'analysis') html = renderAnalysis(ui);
   else if (!state) html = renderStart({ ...snap, pwa: ui.pwa });
   else if (state.phase === 'gameOver') html = renderGameOver(snap);
   else if (state.phase === 'handOver') html = renderHandOver(snap);
@@ -129,6 +133,16 @@ root.addEventListener('click', (ev) => {
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
       case 'lexicon': ui.screen = 'lexicon'; render(snap); break;
+      case 'analysis-list': case 'analysis': openAnalysisList(snap); break;
+      case 'analysis-close': ui.screen = null; render(snap); break;
+      case 'analysis-current': runAnalysis({ seed: snap.state.seed, ruleSet: snap.state.ruleSet, humanSeat: snap.humanSeat, actions: snap.state.actions }); break;
+      case 'analysis-open': {
+        const g = ui.analysis.games.find((x) => x.id === btn.dataset.id);
+        if (g) runAnalysis(g);
+        break;
+      }
+      case 'analysis-hand': ui.analysis.hand = Number(btn.dataset.hand); ui.analysis.decision = null; render(snap); break;
+      case 'analysis-decision': ui.analysis.decision = Number(btn.dataset.index); render(snap); break;
       case 'lexicon-close': ui.screen = null; render(snap); break;
       case 'lexicon-filter': ui.lexicon.category = btn.dataset.category; render(snap); break;
       case 'lexicon-toggle': ui.lexicon.open = ui.lexicon.open === btn.dataset.id ? null : btn.dataset.id; render(snap); break;
@@ -156,6 +170,28 @@ root.addEventListener('click', (ev) => {
     console.error(e);
   }
 });
+
+async function openAnalysisList(snap) {
+  ui.screen = 'analysis-list';
+  ui.analysis.current = !!snap.state && snap.state.actions.length > 0 && snap.humanSeat >= 0;
+  ui.analysis.games = await store.listArchive();
+  render(store.getSnapshot());
+}
+
+function runAnalysis(record) {
+  try {
+    const result = analyzeGame(record, { seat: record.humanSeat >= 0 ? record.humanSeat : 0 });
+    ui.analysis.record = record;
+    ui.analysis.result = result;
+    ui.analysis.hand = result.hands.at(-1)?.hand ?? null;
+    ui.analysis.decision = null;
+    ui.screen = 'analysis';
+  } catch (e) {
+    console.error(e);
+    alert(e.message);
+  }
+  render(store.getSnapshot());
+}
 
 function exportSave() {
   const text = store.exportSave();

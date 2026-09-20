@@ -22,6 +22,7 @@ export function renderStart(snap) {
       <button class="btn primary" data-action="new-game">${t('newGame')}</button>
       ${snap.hasSave ? `<button class="btn" data-action="resume">${t('resume')}</button>` : ''}
       <button class="btn" data-action="lexicon">${t('lexicon')}</button>
+      <button class="btn" data-action="analysis-list">${t('analysis')}</button>
       <div class="row">
         <button class="btn small" data-action="import">${t('importGame')}</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
@@ -274,6 +275,7 @@ export function renderHandOver(snap) {
     ${rows}
     <div class="stack">
       <button class="btn primary" data-action="next-hand">${t('nextHand')}</button>
+      <button class="btn" data-action="analysis-current">${t('analyze')}</button>
       <button class="btn" data-action="export">${t('exportGame')}</button>
       <button class="btn" data-action="quit">${t('toStart')}</button>
     </div>
@@ -288,7 +290,8 @@ export function renderGameOver(snap) {
     <h2>${t('gameOver')}</h2>
     <ol class="ranking">${ranking.map((p) => `<li><span>${esc(playerName(state, p.seat, humanSeat))}</span><b>${p.score}</b></li>`).join('')}</ol>
     <div class="stack">
-      <button class="btn primary" data-action="new-game">${t('newGame')}</button>
+      <button class="btn primary" data-action="analysis-current">${t('analyze')}</button>
+      <button class="btn" data-action="new-game">${t('newGame')}</button>
       <button class="btn" data-action="quit">${t('toStart')}</button>
     </div>
   </section>`;
