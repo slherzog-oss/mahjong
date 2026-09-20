@@ -7,7 +7,7 @@
 
 import { createGame, applyAction, applyPayments, seatsToAct, getLegalActions, rigDeal } from '../core/state.js';
 import { nextInt } from '../core/rng.js';
-import { NUM_KINDS, countsFromKinds } from '../core/tiles.js';
+import { NUM_KINDS, countsFromKinds, kindOf } from '../core/tiles.js';
 import { RULE_PRESETS, RULE_FIELDS } from '../core/presets.js';
 import { createRuleSet } from '../core/rules.js';
 import { stepAI } from '../ai/runner.js';
@@ -360,7 +360,8 @@ function migrate(data) {
 
 function sameAction(a, b) {
   if (a.type !== b.type) return false;
-  if (a.type === 'discard') return a.tile === b.tile || (b.tile === undefined);
+  // getLegalActions nennt je Art nur eine Stein-ID; jede Kopie derselben Art ist erlaubt
+  if (a.type === 'discard') return b.tile === undefined || a.tile === b.tile || kindOf(a.tile) === kindOf(b.tile);
   if (a.type === 'chow') return a.kinds[0] === b.kinds?.[0] && a.kinds[1] === b.kinds?.[1];
   if (a.type === 'kong') return a.variant === b.variant && (a.kind === undefined || a.kind === b.kind);
   return true;

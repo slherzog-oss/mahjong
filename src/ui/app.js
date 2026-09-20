@@ -154,11 +154,16 @@ root.addEventListener('click', (ev) => {
 
   if (tile && snap.state?.phase === 'discard' && snap.humanToAct) {
     const id = Number(tile.dataset.id);
-    if (!snap.settings.confirmDiscard || ui.selected === id) {
-      discard(id);
-    } else {
-      ui.selected = id;
-      render(snap);
+    try {
+      if (!snap.settings.confirmDiscard || ui.selected === id) {
+        discard(id);
+      } else {
+        ui.selected = id;
+        render(snap);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast(e.message);
     }
     return;
   }

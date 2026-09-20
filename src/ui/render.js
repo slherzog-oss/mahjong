@@ -179,7 +179,7 @@ export function renderGame(snap, ui) {
   let formsHtml = '';
   if (snap.settings.showForms && me.hand.length > 0 && state.phase !== 'handOver') {
     try {
-      const forms = analyzeForms(state, humanSeat);
+      const forms = cachedForms(state, humanSeat);
       formsHtml = renderFormsPanel(forms, { target, expanded: ui.formsOpen, showKinds: ui.showKinds });
       if (target && !forms.some((f) => f.form === target && f.chance >= 0.02)) {
         const tf = forms.find((f) => f.form === target);
@@ -221,6 +221,16 @@ export function renderGame(snap, ui) {
       </div>
     </div>
   </section>`;
+}
+
+const formsCache = { key: null, value: null };
+function cachedForms(state, seat) {
+  const key = `${state.seed}:${state.handNumber}:${state.log.length}:${seat}`;
+  if (formsCache.key !== key) {
+    formsCache.key = key;
+    formsCache.value = analyzeForms(state, seat);
+  }
+  return formsCache.value;
 }
 
 function adviceHtml(adv) {
