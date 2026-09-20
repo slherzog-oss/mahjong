@@ -2,6 +2,9 @@
 import { createStore } from '../store/store.js';
 import { defaultAdapter, requestPersistentStorage } from '../store/persistence.js';
 import { renderStart, renderGame, renderHandOver, renderGameOver } from './render.js';
+import { renderLexicon } from './lexicon.js';
+import { lexiconById } from '../lexicon/hands.js';
+import { parseKinds } from '../core/tiles.js';
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
 import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
 import { t } from '../i18n/de.js';
@@ -10,7 +13,7 @@ import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, ke
 const root = document.getElementById('app');
 const store = createStore({ persistence: defaultAdapter() });
 store.checkSave();
-const ui = { selected: null, legal: [], advice: null };
+const ui = { selected: null, legal: [], advice: null, screen: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null };
 let lastPhaseKey = '';
 
 function render(snap) {
@@ -18,7 +21,8 @@ function render(snap) {
   ui.legal = state ? store.legalActions() : [];
   ui.pwa = { updateReady: pwa.updateReady, canInstall: !!pwa.installPrompt && !isStandalone(), version: pwa.version };
   let html;
-  if (!state) html = renderStart({ ...snap, pwa: ui.pwa });
+  if (ui.screen === 'lexicon') html = renderLexicon(ui);
+  else if (!state) html = renderStart({ ...snap, pwa: ui.pwa });
   else if (state.phase === 'gameOver') html = renderGameOver(snap);
   else if (state.phase === 'handOver') html = renderHandOver(snap);
   else html = renderGame(snap, ui);
@@ -65,7 +69,7 @@ function advise() {
   if (!state) return;
   const legal = store.legalActions();
   if (state.phase === 'discard' && !legal.some((a) => a.type === 'mahjong')) {
-    const adv = adviseDiscard(state, humanSeat);
+    const adv = adviseDiscard(state, humanSeat, { target: state.players[humanSeat].target ?? null });
     ui.advice = {
       kind: adv.best.kind,
       dangerKinds: adv.options.filter((o) => o.danger > 0.6 && adv.progress > 0.4).map((o) => o.kind),
@@ -100,13 +104,13 @@ root.addEventListener('click', (ev) => {
   const a = btn.dataset.action;
   try {
     switch (a) {
-      case 'new-game': requestPersistentStorage(); store.newGame(); break;
+      case 'new-game': requestPersistentStorage(); ui.practice = null; ui.showKinds = null; store.newGame(); break;
       case 'resume': store.load(); break;
       case 'export': exportSave(); break;
       case 'import': root.querySelector('#import-file')?.click(); break;
-      case 'quit': store.quit(); break;
+      case 'quit': ui.practice = null; ui.showKinds = null; ui.screen = null; store.quit(); break;
       case 'undo': ui.selected = null; store.undo(); break;
-      case 'next-hand': store.nextHand(); break;
+      case 'next-hand': ui.practice = null; ui.showKinds = null; store.nextHand(); break;
       case 'draw': store.dispatch({ type: 'draw' }); break;
       case 'mahjong': store.dispatch({ type: 'mahjong' }); break;
       case 'pass': store.dispatch({ type: 'pass' }); break;
@@ -124,6 +128,28 @@ root.addEventListener('click', (ev) => {
       case 'advise': advise(); break;
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
+      case 'lexicon': ui.screen = 'lexicon'; render(snap); break;
+      case 'lexicon-close': ui.screen = null; render(snap); break;
+      case 'lexicon-filter': ui.lexicon.category = btn.dataset.category; render(snap); break;
+      case 'lexicon-toggle': ui.lexicon.open = ui.lexicon.open === btn.dataset.id ? null : btn.dataset.id; render(snap); break;
+      case 'practice': {
+        const entry = lexiconById(btn.dataset.id);
+        if (!entry?.example) break;
+        ui.screen = null;
+        ui.practice = t('practiceHint', { name: entry.name.de });
+        ui.formsOpen = true;
+        store.newPractice(parseKinds(entry.example), { target: entry.form ?? null });
+        break;
+      }
+      case 'set-target': ui.showKinds = null; store.setTarget(btn.dataset.form); break;
+      case 'clear-target': ui.showKinds = null; store.setTarget(null); break;
+      case 'form-select': {
+        if (ev.target.closest('[data-action="set-target"],[data-action="clear-target"]')) break;
+        ui.showKinds = ui.showKinds === btn.dataset.form ? null : btn.dataset.form;
+        ui.formsOpen = true;
+        render(snap);
+        break;
+      }
       default: break;
     }
   } catch (e) {
@@ -142,6 +168,19 @@ function exportSave() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+root.addEventListener('input', (ev) => {
+  const el = ev.target.closest('[data-action="lexicon-search"]');
+  if (!el) return;
+  ui.lexicon.query = el.value;
+  const pos = el.selectionStart;
+  render(store.getSnapshot());
+  const again = root.querySelector('[data-action="lexicon-search"]');
+  if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch { /* ignorieren */ } }
+});
+root.addEventListener('toggle', (ev) => {
+  if (ev.target.classList?.contains('forms')) ui.formsOpen = ev.target.open;
+}, true);
 
 root.addEventListener('change', (ev) => {
   const file = ev.target.closest('#import-file');

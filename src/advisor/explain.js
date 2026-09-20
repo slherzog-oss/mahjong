@@ -8,6 +8,15 @@ const suitName = (s) => t('suitNames')[s] ?? SUITS[s];
 export function explainDiscard(advice) {
   const { best, alternatives, progress } = advice;
   const out = [];
+  if (advice.target) {
+    const name = t('forms.names')[advice.target] ?? advice.target;
+    if (advice.targetReachable && best.shanten <= 4) {
+      out.push(t('adv.target', { name, tile: KIND_NAMES[best.kind], shanten: best.shanten, ukeire: best.total, pct: Math.round(best.chance * 100) }));
+    } else {
+      out.push(t('adv.targetFar', { name, shanten: Number.isFinite(best.shanten) ? best.shanten : '∞', tile: KIND_NAMES[advice.freeBest.kind] }));
+    }
+    return out;
+  }
   out.push(t('adv.best', { tile: KIND_NAMES[best.kind], shanten: best.shanten, ukeire: best.total, pct: Math.round(best.chance * 100) }));
   if (best.visibleCopies >= 3) out.push(t('adv.safe', { tile: KIND_NAMES[best.kind] }));
   else if (best.honour && best.visibleCopies >= 2) out.push(t('adv.honourSeen', { tile: KIND_NAMES[best.kind] }));

@@ -7,6 +7,8 @@ import { ruleLabel } from '../scoring/table.js';
 import { shanten } from '../analysis/shanten.js';
 import { ukeire, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
 import { completionChance, drawsLeftFor } from '../analysis/probability.js';
+import { analyzeForms, formKeepKinds } from '../analysis/forms.js';
+import { renderFormsPanel } from './lexicon.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -19,6 +21,7 @@ export function renderStart(snap) {
     <div class="stack">
       <button class="btn primary" data-action="new-game">${t('newGame')}</button>
       ${snap.hasSave ? `<button class="btn" data-action="resume">${t('resume')}</button>` : ''}
+      <button class="btn" data-action="lexicon">${t('lexicon')}</button>
       <div class="row">
         <button class="btn small" data-action="import">${t('importGame')}</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
@@ -38,6 +41,7 @@ export function renderStart(snap) {
       <label><input type="checkbox" data-setting="sevenPairs" ${s.sevenPairs ? 'checked' : ''}> ${t('sevenPairs')}</label>
       <label><input type="checkbox" data-setting="confirmDiscard" ${s.confirmDiscard ? 'checked' : ''}> ${t('confirmDiscard')}</label>
       <label><input type="checkbox" data-setting="showChance" ${s.showChance ? 'checked' : ''}> ${t('chance')} %</label>
+      <label><input type="checkbox" data-setting="showForms" ${s.showForms ? 'checked' : ''}> ${t('forms.title')}</label>
     </details>
     ${snap.pwa?.canInstall ? `<p><button class="btn" data-action="install">${t('install')}</button></p>` : ''}
     <p class="muted small">${t('version')} ${snap.pwa?.version ? snap.pwa.version : '0.1'} · CC0-Steine von FluffyStuff</p>
@@ -123,6 +127,12 @@ export function renderGame(snap, ui) {
   const handTiles = hand.filter((id) => id !== drawn);
   const discardable = new Set(legal.filter((a) => a.type === 'discard').map((a) => kindOf(a.tile)));
 
+  const target = me.target ?? null;
+  const showForm = ui.showKinds ?? target;
+  let keep = null;
+  if (showForm && me.hand.length > 0 && (me.hand.length - 2) % 3 === 0) {
+    try { keep = formKeepKinds(state, humanSeat, showForm); } catch { keep = null; }
+  }
   const tileBtn = (id) => {
     const k = kindOf(id);
     const cls = [
@@ -130,9 +140,21 @@ export function renderGame(snap, ui) {
       acting && state.phase === 'discard' && discardable.has(k) ? 'clickable' : '',
       ui.advice?.kind === k ? 'advised' : '',
       ui.advice?.dangerKinds?.includes(k) ? 'dangerous' : '',
+      keep ? (keep.has(k) ? 'keep' : 'expendable') : '',
     ].join(' ');
     return tileHtmlById(id, { classes: cls });
   };
+  let formsHtml = '';
+  if (snap.settings.showForms && me.hand.length > 0 && state.phase !== 'handOver') {
+    try {
+      const forms = analyzeForms(state, humanSeat);
+      formsHtml = renderFormsPanel(forms, { target, expanded: ui.formsOpen, showKinds: ui.showKinds });
+      if (target && !forms.some((f) => f.form === target && f.chance >= 0.02)) {
+        const tf = forms.find((f) => f.form === target);
+        formsHtml = `<div class="warn">${t('forms.targetLost', { pct: tf ? Math.round(tf.chance * 100) : 0 })} <button class="btn tiny" data-action="clear-target">${t('forms.free')}</button></div>` + formsHtml;
+      }
+    } catch (e) { console.warn(e); }
+  }
 
   return `
   <section class="screen game">
@@ -162,6 +184,8 @@ export function renderGame(snap, ui) {
         </div>
         <div class="actions">${actionsHtml(state, snap, legal, ui)}</div>
         ${ui.advice ? adviceHtml(ui.advice) : ''}
+        ${ui.practice ? `<div class="practice">${esc(ui.practice)}</div>` : ''}
+        ${formsHtml}
       </div>
     </div>
   </section>`;

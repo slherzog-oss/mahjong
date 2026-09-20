@@ -5,7 +5,9 @@
 // Entscheidungspunkten. undo() springt zum letzten Punkt, an dem der Mensch
 // dran war (nicht nur einen KI-Zug zurück).
 
-import { createGame, applyAction, applyPayments, seatsToAct, getLegalActions } from '../core/state.js';
+import { createGame, applyAction, applyPayments, seatsToAct, getLegalActions, rigDeal } from '../core/state.js';
+import { nextInt } from '../core/rng.js';
+import { NUM_KINDS, countsFromKinds } from '../core/tiles.js';
 import { createRuleSet } from '../core/rules.js';
 import { stepAI } from '../ai/runner.js';
 import { scoreRound } from '../scoring/millington.js';
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS = {
   confirmDiscard: true,
   aiDelayMs: 450,
   showChance: true,
+  showForms: true,
 };
 
 /**
@@ -225,6 +228,36 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
       state = createGame({ seed, ruleSet, humanSeat });
       set(applyAction(state, { type: 'startHand' }));
       scheduleAI();
+    },
+    /**
+     * Übungshand aus dem Lexikon: Beispielhand (14 Arten) mit `holes` zufällig
+     * ersetzten Steinen, Mensch ist Ost. target = Handform für den Berater.
+     */
+    newPractice(exampleKinds, { seed = Date.now(), holes = 2, target = null } = {}) {
+      api.newGame({ seed, humanSeat: 0 });
+      const kinds = exampleKinds.slice();
+      const counts = countsFromKinds(kinds);
+      const rng = { ...state.rng };
+      for (let h = 0; h < holes && kinds.length; h++) {
+        const i = nextInt(rng, kinds.length);
+        counts[kinds[i]]--;
+        kinds.splice(i, 1);
+        // Ersatz: zufällige Art mit freien Kopien
+        let k;
+        do { k = nextInt(rng, NUM_KINDS); } while (counts[k] >= 4);
+        counts[k]++;
+        kinds.push(k);
+      }
+      let s = rigDeal(state, 0, kinds);
+      if (target) s = applyAction(s, { type: 'setTarget', seat: 0, form: target });
+      history = [];
+      set(s);
+      scheduleAI();
+    },
+    /** Spielziel des Menschen setzen (Handform-ID oder null). */
+    setTarget(form) {
+      if (!state || state.phase === 'gameOver') return;
+      set(applyAction(state, { type: 'setTarget', seat: humanSeat(), form }));
     },
     /** Aktion des Menschen. */
     dispatch(action) {

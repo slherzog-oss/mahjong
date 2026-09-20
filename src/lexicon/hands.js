@@ -1,0 +1,94 @@
+// Hand-Lexikon für Chinese Classical (Millington). Datenbasis für den
+// Lexikon-Bildschirm, die Entwicklungshinweise und die Übungshände.
+//
+// Felder:
+//   id        stabile Kennung (bei Scoring-Zeilen identisch mit SCORE_RULES)
+//   category  'basics' | 'points' | 'double' | 'limit' | 'option'
+//   rule      ID in SCORE_RULES (Wert und Labels), optional
+//   name      { de, en }
+//   text      { de } Erklärung
+//   example   Kurznotation einer Beispielhand (14 Steine) oder null
+//   tip       { de } Aufbautipp
+//   rarity    1 (häufig) .. 5 (sehr selten)
+//   standard  true = Millington-Standard, false = Option
+//   form      Zielform für die Analyse (siehe analysis/forms.js), optional
+
+export const LEXICON = [
+  // --- Grundlagen ---
+  {
+    id: 'basics_sets', category: 'basics', name: { de: 'Sätze und Paar', en: 'Sets and pair' },
+    text: { de: 'Eine fertige Standardhand besteht aus vier Sätzen und einem Paar (14 Steine). Sätze sind Chow (drei aufeinanderfolgende Steine einer Farbe), Pung (drei gleiche) und Kong (vier gleiche). Chows sind punktlos, Pungs und Kongs bringen Grundpunkte, verdeckt doppelt so viele wie offen.' },
+    example: '123b 456c 789k EEE rr', tip: { de: 'Behalte Paare und Pungs aus Honours: sie bringen Punkte und Verdopplungen. Chows sind schnell, aber wertlos.' }, rarity: 1, standard: true,
+  },
+  {
+    id: 'basics_calls', category: 'basics', name: { de: 'Rufen: Chow, Pung, Kong, Mahjong', en: 'Calls' },
+    text: { de: 'Ein Abwurf kann gerufen werden: Chow nur vom linken Nachbarn (Vorspieler), Pung und Kong von jedem, Mahjong von jedem. Vorrang: Mahjong vor Pung/Kong vor Chow; bei mehreren Mahjong-Rufen gewinnt der nächste in Spielreihenfolge. Gerufene Sätze liegen offen und zählen weniger; die Hand verliert die Verdopplung für die verdeckte Hand.' },
+    example: null, tip: { de: 'Rufe nur, wenn die Hand dadurch einen Schritt näher ans Warten rückt. Ein früher Chow verrät deine Farbe und öffnet die Hand.' }, rarity: 1, standard: true,
+  },
+  {
+    id: 'basics_scoring', category: 'basics', name: { de: 'Punkte, Verdopplungen, Limit', en: 'Points, doubles, limit' },
+    text: { de: 'Jeder Spieler zählt seine Hand: Grundpunkte (Mahjong 20, Sätze, Paare, Bonussteine, Gewinnart) mal 2 je Verdopplung, gekappt auf das Limit (500, Option 1000). Limit-Hände zählen genau das Limit. Der Gewinner erhält seinen Wert von allen drei anderen; die Verlierer begleichen untereinander die Differenz ihrer Handwerte. Ost zahlt und erhält doppelt.' },
+    example: null, tip: { de: 'Auch als Verlierer zählen Pungs, Paare aus Drachen und Winden und Bonussteine. Eine wertlose Hand kostet doppelt: gegen den Gewinner und gegen die anderen Verlierer.' }, rarity: 1, standard: true,
+  },
+  {
+    id: 'basics_east', category: 'basics', name: { de: 'Ost, Winde und Runden', en: 'East, winds and rounds' },
+    text: { de: 'Ost ist Geber, beginnt mit 14 Steinen, zahlt und erhält doppelt. Gewinnt Ost oder endet die Hand unentschieden, bleibt Ost; sonst wandert der Geber weiter. Nach vier Gebern wechselt der Rundenwind (Ost, Süd, West, Nord). Pung und Paar des eigenen Windes und des Rundenwindes bringen Verdopplung bzw. Punkte.' },
+    example: null, tip: { de: 'Als Ost lohnt sich Tempo: jede Hand zählt doppelt, gewonnen wie verloren.' }, rarity: 1, standard: true,
+  },
+  {
+    id: 'basics_wall', category: 'basics', name: { de: 'Wand, Kong-Box, Unentschieden', en: 'Wall, kong box, draw' },
+    text: { de: 'Die lebende Wand liefert die Züge; die Kong-Box (tote Wand, 14 Steine) liefert Ersatzsteine nach Kongs und Bonussteinen und wird nach Millington aus der lebenden Wand aufgefüllt. Ist die lebende Wand leer, endet die Hand unentschieden ohne Punkte, Ost bleibt.' },
+    example: null, tip: { de: 'Spät im Spiel gilt: kein Stein ist mehr sicher, den ein Gegner mit offenen Sätzen brauchen könnte. Wirf Steine, die bereits dreimal sichtbar sind.' }, rarity: 1, standard: true,
+  },
+
+  // --- Punkte (Auswahl, Rest aus SCORE_RULES) ---
+  { id: 'pung_major_closed', category: 'points', rule: 'pung_major_closed', name: { de: 'Verdeckter Pung Endsteine/Honours', en: 'Concealed pung of terminals/honours' }, text: { de: 'Drei gleiche 1er, 9er, Winde oder Drachen, selbst gezogen (nicht gerufen): 8 Punkte. Offen 4, einfache Steine 4 verdeckt / 2 offen.' }, example: '111b 456c 789k EEE rr', tip: { de: 'Ein Paar Endsteine oder Honours früh behalten: die dritte Kopie macht daraus den wertvollsten Pung.' }, rarity: 1, standard: true },
+  { id: 'kong_major_closed', category: 'points', rule: 'kong_major_closed', name: { de: 'Verdeckter Kong', en: 'Concealed kong' }, text: { de: 'Vier gleiche Steine aus der Hand angesagt: 32 Punkte für Endsteine/Honours, 16 für einfache. Nach einem Kong ziehst du einen Ersatzstein aus der Kong-Box.' }, example: null, tip: { de: 'Ein Kong bringt einen Extra-Zug und Punkte, verrät aber deine Sammlung. Vier Kongs sind ein Limit.' }, rarity: 2, standard: true },
+  { id: 'pair_dragon', category: 'points', rule: 'pair_dragon', name: { de: 'Paar Drachen / Winde', en: 'Pair of dragons or winds' }, text: { de: 'Ein Paar aus Drachen, dem eigenen Wind oder dem Rundenwind bringt 2 Punkte (eigener Wind als Rundenwind: 4).' }, example: null, tip: { de: 'Ideal als Paar der fertigen Hand.' }, rarity: 1, standard: true },
+  { id: 'win_only_possible', category: 'points', rule: 'win_only_possible', name: { de: 'Warten auf einen einzigen Stein', en: 'Waiting on the only possible tile' }, text: { de: 'Kantenwarten (12 → 3), Mittelwarten (13 → 2) oder Paarwarten bringen 2 Punkte, wenn kein anderer Stein die Hand vervollständigt hätte.' }, example: '123b 456c 789k EEE 55k', tip: { de: 'Ein breites Warten (mehr Steine) ist trotzdem meist besser als 2 Punkte.' }, rarity: 1, standard: true },
+  { id: 'win_self_draw', category: 'points', rule: 'win_self_draw', name: { de: 'Selbstzug', en: 'Self-draw' }, text: { de: 'Gewinn mit einem selbst gezogenen Stein: 2 Punkte; alle drei Gegner zahlen. Mit letztem Wandstein, Kong-Ersatzstein oder Kong-Raub je 2 weitere.' }, example: null, tip: { de: 'Verdeckte Hand plus Selbstzug ergibt die Verdopplung "verdeckte Hand".' }, rarity: 1, standard: true },
+
+  // --- Verdopplungen ---
+  { id: 'dbl_pung_dragon', category: 'double', rule: 'dbl_pung_dragon', name: { de: 'Drachen-Pung', en: 'Dragon pung' }, text: { de: 'Jeder Pung oder Kong aus Roten, Grünen oder Weißen Drachen verdoppelt die Hand, auch für Verlierer.' }, example: '123b 456c 789k rrr EE', tip: { de: 'Der einfachste Weg zu Verdopplungen: zwei Drachen behalten, die dritte kommt oft per Ruf.' }, rarity: 1, standard: true, form: 'standard' },
+  { id: 'dbl_pung_own_wind', category: 'double', rule: 'dbl_pung_own_wind', name: { de: 'Pung des eigenen Windes / Rundenwindes', en: 'Own wind / prevailing wind pung' }, text: { de: 'Pung oder Kong deines Sitzwindes: 1 Verdopplung; des Rundenwindes: 1 weitere. Als Ost in der Ostrunde sind das 2 Verdopplungen für einen Ost-Pung.' }, example: '123b 456c 789k EEE 55k', tip: { de: 'Fremde Winde sind wertlos für dich: früh abwerfen, bevor sie gefährlich werden.' }, rarity: 1, standard: true, form: 'standard' },
+  { id: 'dbl_no_chow', category: 'double', rule: 'dbl_no_chow', name: { de: 'Nur Pungs (All Pungs)', en: 'All pungs' }, text: { de: 'Vier Pungs/Kongs und ein Paar, kein Chow: 1 Verdopplung, dazu die Grundpunkte aller Pungs. Verdeckt und per Selbstzug gewonnen wird daraus der Verborgene Schatz (Limit).' }, example: '111b 555c 999k EEE rr', tip: { de: 'Sammle Paare statt Reihen; rufe Pungs, wenn die Hand sonst zu langsam wird.' }, rarity: 2, standard: true, form: 'all_pungs' },
+  { id: 'dbl_concealed', category: 'double', rule: 'dbl_concealed', name: { de: 'Verdeckte Hand', en: 'Concealed hand' }, text: { de: 'Kein gerufener Satz (verdeckte Kongs erlaubt) und Gewinn per Selbstzug: 1 Verdopplung. Alle Pungs zählen dann als verdeckt.' }, example: null, tip: { de: 'Lohnt sich vor allem mit Pung-Händen: verdeckte Pungs zählen doppelt und die Hand wird verdoppelt.' }, rarity: 2, standard: true, form: 'concealed' },
+  { id: 'dbl_three_concealed_pungs', category: 'double', rule: 'dbl_three_concealed_pungs', name: { de: 'Drei verdeckte Pungs', en: 'Three concealed pungs' }, text: { de: 'Drei selbst gezogene Pungs in der Hand: 1 Verdopplung, unabhängig vom vierten Satz.' }, example: null, tip: { de: 'Der Weg zum Verborgenen Schatz: vier verdeckte Pungs und Selbstzug.' }, rarity: 3, standard: true, form: 'all_pungs' },
+  { id: 'dbl_half_flush', category: 'double', rule: 'dbl_half_flush', name: { de: 'Eine Farbe mit Honours (Half Flush)', en: 'Half flush' }, text: { de: 'Alle Steine aus einer Farbe plus Winde/Drachen: 1 Verdopplung. Häufig kombiniert mit Drachen- oder Wind-Pungs.' }, example: '123b 456b 999b EEE rr', tip: { de: 'Wenn eine Farbe schon 6 bis 7 Steine stellt, lohnt der Umbau. Honours-Paare passen dazu.' }, rarity: 2, standard: true, form: 'half_flush' },
+  { id: 'dbl_full_flush', category: 'double', rule: 'dbl_full_flush', name: { de: 'Reine Farbe (Full Flush)', en: 'Full flush' }, text: { de: 'Alle 14 Steine aus einer Farbe: 3 Verdopplungen. Vollständig verdeckt ist die reine Farbe ein Limit.' }, example: '123b 456b 789b 234b 99b', tip: { de: 'Braucht Zeit und verrät sich: Gegner werfen deine Farbe nicht mehr. Chow-Rufe vom linken Nachbarn helfen.' }, rarity: 3, standard: true, form: 'full_flush' },
+  { id: 'dbl_terminals_honours', category: 'double', rule: 'dbl_terminals_honours', name: { de: 'Nur Endsteine und Honours', en: 'All terminals and honours' }, text: { de: 'Alle Sätze und das Paar bestehen aus 1ern, 9ern, Winden und Drachen: 1 Verdopplung plus hohe Grundpunkte (alle Pungs sind Major).' }, example: '111b 999c EEE rrr 99k', tip: { de: 'Ohne Chows: nur Pungs möglich. Nur Endsteine ergibt Heads and Tails, nur Honours ist ebenfalls Limit.' }, rarity: 3, standard: true, form: 'terminals_honours' },
+  { id: 'dbl_little_three_dragons', category: 'double', rule: 'dbl_little_three_dragons', name: { de: 'Drei kleine Drachen', en: 'Little three dragons' }, text: { de: 'Zwei Drachen-Pungs und das dritte Drachenpaar: 1 Verdopplung zusätzlich zu den zwei Drachen-Verdopplungen.' }, example: 'rrr ggg 123b 456c ww', tip: { de: 'Der dritte Drachen-Pung macht daraus die Drei großen Drachen (Limit).' }, rarity: 3, standard: true, form: 'dragons' },
+  { id: 'dbl_little_four_winds', category: 'double', rule: 'dbl_little_four_winds', name: { de: 'Vier kleine Winde', en: 'Little four winds' }, text: { de: 'Drei Wind-Pungs und das vierte Windpaar: 1 Verdopplung. Vier Wind-Pungs sind ein Limit.' }, example: 'EEE SSS WWW 123b NN', tip: { de: 'Winde werden früh abgeworfen: rufe sie, sobald du ein Paar hast.' }, rarity: 4, standard: true, form: 'winds' },
+  { id: 'dbl_zero_point_hand', category: 'double', rule: 'dbl_zero_point_hand', name: { de: 'Hühnerhand (Zero Point Hand)', en: 'Chicken hand' }, text: { de: 'Eine Hand ohne jeden Punkt außer Mahjong (nur Chows, wertloses Paar, kein Bonus): 1 Verdopplung als Trost.' }, example: '123b 456c 789k 234k 55b', tip: { de: 'Schnell, aber wenig wert: 20 Punkte × 2. Als Ost trotzdem ein guter Weg, Geber zu bleiben.' }, rarity: 2, standard: true, form: 'standard' },
+
+  // --- Limit-Hände ---
+  { id: 'lim_thirteen_orphans', category: 'limit', rule: 'lim_thirteen_orphans', name: { de: 'Dreizehn Waisen', en: 'Thirteen Orphans' }, text: { de: 'Je eine 1 und 9 jeder Farbe, alle vier Winde, alle drei Drachen, davon ein Stein doppelt. Muss verdeckt bleiben; darf nach Option den vierten Stein eines verdeckten Kongs rauben.' }, example: '19b 19c 19k ESWN rgw E', tip: { de: 'Nur mit 9 oder mehr verschiedenen Waisen zu Beginn versuchen. Alles andere abwerfen, Mittelsteine sind wertlos.' }, rarity: 5, standard: true, form: 'thirteen_orphans' },
+  { id: 'lim_nine_gates', category: 'limit', rule: 'lim_nine_gates', name: { de: 'Neun Tore', en: 'Nine Gates' }, text: { de: '1112345678999 einer Farbe, verdeckt, plus ein beliebiger weiterer Stein derselben Farbe. Wartet auf neun verschiedene Steine.' }, example: '1112345678999b 5b', tip: { de: 'Entsteht aus einer verdeckten reinen Farbe mit Pungs auf 1 und 9.' }, rarity: 5, standard: true, form: 'nine_gates' },
+  { id: 'lim_heavenly', category: 'limit', rule: 'lim_heavenly', name: { de: 'Himmlische Hand', en: 'Heavenly Hand' }, text: { de: 'Ost gewinnt mit den 14 gegebenen Steinen, bevor ein Abwurf gemacht wurde.' }, example: null, tip: { de: 'Reines Glück.' }, rarity: 5, standard: true },
+  { id: 'lim_earthly', category: 'limit', rule: 'lim_earthly', name: { de: 'Irdische Hand', en: 'Earthly Hand' }, text: { de: 'Ein Spieler gewinnt mit Osts erstem Abwurf.' }, example: null, tip: { de: 'Reines Glück.' }, rarity: 5, standard: true },
+  { id: 'lim_four_kongs', category: 'limit', rule: 'lim_four_kongs', name: { de: 'Vier Kongs', en: 'Fourfold Plenty' }, text: { de: 'Vier Kongs (offen oder verdeckt) und ein Paar.' }, example: null, tip: { de: 'Jeder Kong bringt einen Ersatzstein; die Hand wird oft erst mit dem letzten Ersatzstein fertig.' }, rarity: 5, standard: true, form: 'all_pungs' },
+  { id: 'lim_all_honours', category: 'limit', rule: 'lim_all_honours', name: { de: 'Nur Honours', en: 'All Honours' }, text: { de: 'Vier Pungs/Kongs aus Winden und Drachen plus ein Honours-Paar.' }, example: 'EEE SSS WWW rrr gg', tip: { de: 'Entsteht aus einer Nur-Endsteine-und-Honours-Hand ohne Endsteine.' }, rarity: 5, standard: true, form: 'all_honours' },
+  { id: 'lim_big_four_winds', category: 'limit', rule: 'lim_big_four_winds', name: { de: 'Vier große Winde', en: 'Big Four Winds' }, text: { de: 'Pungs oder Kongs aller vier Winde plus beliebiges Paar.' }, example: 'EEE SSS WWW NNN 55c', tip: { de: 'Aus den vier kleinen Winden mit dem vierten Wind-Pung.' }, rarity: 5, standard: true, form: 'winds' },
+  { id: 'lim_big_three_dragons', category: 'limit', rule: 'lim_big_three_dragons', name: { de: 'Drei große Drachen', en: 'Big Three Dragons' }, text: { de: 'Pungs oder Kongs aller drei Drachen plus ein Satz und ein Paar.' }, example: 'rrr ggg www 123b 55c', tip: { de: 'Aus den drei kleinen Drachen mit dem dritten Drachen-Pung.' }, rarity: 5, standard: true, form: 'dragons' },
+  { id: 'lim_hidden_treasure', category: 'limit', rule: 'lim_hidden_treasure', name: { de: 'Verborgener Schatz', en: 'Buried Treasure' }, text: { de: 'Vier verdeckte Pungs (nicht gerufen) plus Paar, Gewinn per Selbstzug.' }, example: '111b 222b 333b EEE 99b', tip: { de: 'Nicht rufen, auch wenn es verlockt. Drei verdeckte Pungs bringen unterwegs schon eine Verdopplung.' }, rarity: 4, standard: true, form: 'all_pungs_concealed' },
+  { id: 'lim_concealed_full_flush', category: 'limit', rule: 'lim_concealed_full_flush', name: { de: 'Verdeckte reine Farbe', en: 'Concealed Full Flush' }, text: { de: 'Reine Farbe ohne gerufene Sätze.' }, example: '123b 456b 789b 234b 99b', tip: { de: 'Die reine Farbe mit 3 Verdopplungen ist die offene Variante; verdeckt zählt sie das Limit.' }, rarity: 4, standard: true, form: 'full_flush_concealed' },
+  { id: 'lim_heads_and_tails', category: 'limit', rule: 'lim_heads_and_tails', name: { de: 'Nur Endsteine (Heads and Tails)', en: 'Heads and Tails' }, text: { de: 'Alle Sätze und das Paar aus 1ern und 9ern.' }, example: '111b 999b 111c 999k 99c', tip: { de: 'Endsteine werden früh abgeworfen: rufe Pungs, sonst wird es zu langsam.' }, rarity: 5, standard: true, form: 'terminals' },
+  { id: 'lim_all_green', category: 'limit', rule: 'lim_all_green', name: { de: 'Kaiserliche Jade (All Green)', en: 'Imperial Jade' }, text: { de: 'Nur 2, 3, 4, 6, 8 Bambus und Grüner Drache.' }, example: '222b 333b 444b 666b gg', tip: { de: 'Chows 234b sind erlaubt; 5 und 7 Bambus sind tabu.' }, rarity: 5, standard: true, form: 'all_green' },
+  { id: 'lim_plum_blossom', category: 'limit', rule: 'lim_plum_blossom', name: { de: 'Pflaumenblüte vom Dach', en: 'Gathering Plum Blossom from the Roof' }, text: { de: 'Gewinn mit 5 Kreise als Ersatzstein nach einem Kong.' }, example: null, tip: { de: 'Mit einem Warten auf 5 Kreise lohnt sich jeder Kong.' }, rarity: 5, standard: true },
+  { id: 'lim_plucking_moon', category: 'limit', rule: 'lim_plucking_moon', name: { de: 'Mond vom Meeresgrund', en: 'Plucking the Moon from the Sea' }, text: { de: 'Gewinn mit 1 Kreise als letztem Stein der Wand (Selbstzug).' }, example: null, tip: { de: 'Selten planbar; ein Warten auf 1 Kreise am Ende der Wand halten.' }, rarity: 5, standard: true },
+  { id: 'lim_scratching_pole', category: 'limit', rule: 'lim_scratching_pole', name: { de: 'Tragestange kratzen', en: 'Scratching a Carrying Pole' }, text: { de: 'Gewinn durch Raub des Kongs mit 2 Bambus.' }, example: null, tip: { de: 'Nur beim Ergänzungs-Kong eines Gegners möglich.' }, rarity: 5, standard: true },
+  { id: 'lim_twofold_fortune', category: 'limit', rule: 'lim_twofold_fortune', name: { de: 'Doppeltes Glück', en: 'Twofold Fortune' }, text: { de: 'Gewinn mit dem Ersatzstein nach zwei unmittelbar aufeinanderfolgenden Kongs.' }, example: null, tip: { de: 'Nicht planbar.' }, rarity: 5, standard: true },
+
+  // --- Optionen ---
+  { id: 'lim_seven_pairs', category: 'option', rule: 'lim_seven_pairs', name: { de: 'Sieben Paare', en: 'Seven Pairs' }, text: { de: 'Sieben verschiedene Paare (Option, nicht bei Millington). In dieser App als Limit gewertet, wenn die Regeloption aktiv ist.' }, example: '11b 22b 33c 44c 55k EE rr', tip: { de: 'Nur mit vier oder mehr Paaren zu Beginn ansteuern; Rufen ist ausgeschlossen.' }, rarity: 4, standard: false, form: 'seven_pairs' },
+];
+
+export const CATEGORIES = ['basics', 'points', 'double', 'limit', 'option'];
+
+export function lexiconById(id) {
+  return LEXICON.find((e) => e.id === id) ?? null;
+}
+
+export function lexiconByRule(ruleId) {
+  return LEXICON.find((e) => e.rule === ruleId) ?? null;
+}

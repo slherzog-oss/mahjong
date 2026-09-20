@@ -16,7 +16,7 @@
 //   'gameOver'  alle Runden gespielt
 
 import { kindOf, isBonus, isSuited, suitOf, rankOf, NUM_KINDS } from './tiles.js';
-import { createRngState } from './rng.js';
+import { createRngState, shuffle } from './rng.js';
 import { buildWall, drawLiving, drawReplacement } from './wall.js';
 import { isWinningHand } from './hand.js';
 import { createRuleSet } from './rules.js';
@@ -52,6 +52,7 @@ export function createGame({ seed = Date.now(), ruleSet = createRuleSet(), human
       melds: [], // { type, tiles: ids, kinds, open, from: seat|null }
       bonus: [], // Bonus-IDs
       discards: [], // IDs in Abwurfreihenfolge
+      target: null, // gewähltes Spielziel (Handform-ID) oder null
     })),
     wall: { living: [], dead: [] },
     current: 0,
@@ -348,6 +349,14 @@ export function applyAction(prev, action) {
       endHand(state);
       break;
 
+    case 'setTarget': {
+      // Spielziel eines Sitzes (Handform-ID oder null); nur Protokoll, keine Regelwirkung
+      if (state.phase === 'gameOver') throw new IllegalAction('Spiel ist beendet', action);
+      player(state, seat).target = action.form ?? null;
+      logEvent(state, { type: 'set_target', seat, form: action.form ?? null });
+      break;
+    }
+
     default:
       throw new IllegalAction(`Unbekannte Aktion ${type}`, action);
   }
@@ -372,6 +381,7 @@ function startHand(state) {
     p.melds = [];
     p.bonus = [];
     p.discards = [];
+    p.target = null;
   }
   state.turn = 0;
   state.lastDraw = null;
@@ -581,13 +591,62 @@ function endHand(state) {
 }
 
 /**
+ * Übungsverteilung: gibt einem Sitz eine vorgegebene Hand (Arten) direkt nach
+ * startHand und verteilt die übrigen Steine neu (deterministisch über state.rng).
+ * hand: 13 Arten (oder 14 für den Geber). Liefert neuen Zustand.
+ */
+export function rigDeal(prev, seat, kinds) {
+  const state = clone(prev);
+  if (state.phase !== 'discard' || state.turn !== 0) throw new IllegalAction('rigDeal nur direkt nach startHand', { type: 'rigDeal' });
+  const expected = seat === state.dealer ? 14 : 13;
+  if (kinds.length !== expected) throw new IllegalAction(`rigDeal: ${kinds.length} Steine, erwartet ${expected}`, { type: 'rigDeal' });
+  const pool = allTileIdsFor(state.ruleSet);
+  const take = (kind) => {
+    const i = pool.findIndex((id) => kindOf(id) === kind);
+    if (i < 0) throw new IllegalAction(`rigDeal: keine Kopie von Art ${kind}`, { type: 'rigDeal' });
+    return pool.splice(i, 1)[0];
+  };
+  const hand = kinds.map(take);
+  shuffle(state.rng, pool);
+  for (const p of state.players) {
+    p.melds = [];
+    p.bonus = [];
+    p.discards = [];
+    if (p.seat === seat) p.hand = hand;
+    else p.hand = pool.splice(0, p.seat === state.dealer ? 14 : 13);
+  }
+  // Bonussteine in fremden Händen sofort auslegen (wie beim Geben)
+  for (const p of state.players) {
+    if (p.seat === seat) continue;
+    for (let i = p.hand.length - 1; i >= 0; i--) {
+      if (isBonus(kindOf(p.hand[i]))) {
+        p.bonus.push(p.hand.splice(i, 1)[0]);
+        p.hand.push(pool.shift());
+      }
+    }
+  }
+  state.wall = { living: pool, dead: pool.splice(pool.length - state.ruleSet.deadWallSize, state.ruleSet.deadWallSize) };
+  const dealer = player(state, state.dealer);
+  state.lastDraw = { seat: state.dealer, tile: dealer.hand[dealer.hand.length - 1], replacement: false };
+  state.log = state.log.filter((e) => e.type !== 'deal');
+  logEvent(state, { type: 'deal', hands: state.players.map((p) => [...p.hand]), practice: seat });
+  state.actions.push({ type: 'rigDeal', seat, kinds });
+  return state;
+}
+
+function allTileIdsFor(ruleSet) {
+  const n = ruleSet.bonusTiles ? 144 : 136;
+  return Array.from({ length: n }, (_, i) => i);
+}
+
+/**
  * Replay: wendet eine Aktionsliste auf ein frisches Spiel an.
  * onStep(state, action, index) wird nach jeder Aktion aufgerufen.
  */
 export function replay({ seed, ruleSet, humanSeat = 0, actions }, onStep = null) {
   let s = createGame({ seed, ruleSet, humanSeat });
   actions.forEach((a, i) => {
-    s = applyAction(s, a);
+    s = a.type === 'rigDeal' ? rigDeal(s, a.seat, a.kinds) : applyAction(s, a);
     onStep?.(s, a, i);
   });
   return s;

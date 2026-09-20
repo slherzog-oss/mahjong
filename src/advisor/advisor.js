@@ -5,6 +5,7 @@ import { kindOf, countsFromKinds } from '../core/tiles.js';
 import { seatWind, getLegalActions } from '../core/state.js';
 import { shanten } from '../analysis/shanten.js';
 import { evaluateDiscards, valuePotential } from '../analysis/evaluate.js';
+import { formDiscardOptions, formKeepKinds } from '../analysis/forms.js';
 
 export { valuePotential };
 
@@ -13,15 +14,38 @@ export { valuePotential };
  * { best, alternatives, options, chance, hints } mit Einträgen
  * { kind, shanten, total, danger, potential, chance, keepsPair }.
  */
-export function adviseDiscard(state, seat) {
+export function adviseDiscard(state, seat, { target = null } = {}) {
   const p = state.players[seat];
   const kinds = p.hand.map(kindOf);
   const melds = p.melds.map((m) => ({ type: m.type, kinds: m.kinds, open: m.open }));
   const { options, progress } = evaluateDiscards(state, seat);
-  const best = options[0];
-  const alternatives = options.slice(1, 3);
   const hints = specialHandHints(kinds, melds, state.ruleSet, seatWind(state, seat), state.roundWind);
-  return { best, alternatives, options, hints, progress };
+  const free = options[0];
+  if (!target) return { best: free, alternatives: options.slice(1, 3), options, hints, progress, target: null };
+
+  // Zielmodus: Distanz und Ukeire der Zielform entscheiden, Gefahr/Wert aus der freien Bewertung
+  const byKind = new Map(options.map((o) => [o.kind, o]));
+  const targetOpts = formDiscardOptions(state, seat, target).map((o) => ({
+    ...byKind.get(o.kind),
+    kind: o.kind,
+    shanten: o.shanten,
+    total: o.total,
+    tiles: o.tiles,
+    chance: o.chance,
+  }));
+  const reachable = targetOpts.length && Number.isFinite(targetOpts[0].shanten);
+  const best = reachable ? targetOpts[0] : free;
+  return {
+    best,
+    alternatives: (reachable ? targetOpts : options).slice(1, 3),
+    options: reachable ? targetOpts : options,
+    hints,
+    progress,
+    target,
+    targetReachable: !!reachable,
+    freeBest: free,
+    keep: reachable ? formKeepKinds(state, seat, target) : new Set(),
+  };
 }
 
 /** Empfehlung bei Call-Angebot: { action, reason: {…}, before, after }. */
