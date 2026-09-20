@@ -1,6 +1,6 @@
 // Lexikon-Bildschirm und Formen-Panel ("Mögliche Blätter").
 import { parseKinds, KIND_NAMES } from '../core/tiles.js';
-import { LEXICON, CATEGORIES } from '../lexicon/hands.js';
+import { fullLexicon, CATEGORIES } from '../lexicon/hands.js';
 import { SCORE_RULES } from '../scoring/table.js';
 import { tileHtml } from './tiles.js';
 import { t, getLanguage } from '../i18n/index.js';
@@ -19,7 +19,7 @@ function worth(entry) {
 
 export function lexiconEntries({ query = '', category = 'all' } = {}) {
   const q = query.trim().toLowerCase();
-  return LEXICON.filter((e) => (category === 'all' || e.category === category))
+  return fullLexicon().filter((e) => (category === 'all' || e.category === category))
     .filter((e) => !q || [e.name.de, e.name.en, e.text.de, e.text.en ?? '', e.tip?.de ?? '', e.tip?.en ?? ''].join(' ').toLowerCase().includes(q));
 }
 

@@ -85,8 +85,36 @@ export const LEXICON = [
 
 export const CATEGORIES = ['basics', 'points', 'double', 'limit', 'option'];
 
+import { SCORE_RULES } from '../scoring/table.js';
+
+const GENERIC = {
+  points: { de: 'Grundpunkte laut Millington-Tabelle. Zählt für Gewinner und Verlierer.', en: 'Base points per the Millington table. Counts for winners and losers.' },
+  double: { de: 'Verdoppelt den Handwert.', en: 'Doubles the hand value.' },
+  limit: { de: 'Limit-Hand: zählt genau das Limit.', en: 'Limit hand: scores exactly the limit.' },
+};
+
+/** Lexikon plus automatisch erzeugte Einträge für alle Scoring-Zeilen ohne eigenen Eintrag. */
+export function fullLexicon() {
+  const covered = new Set(LEXICON.map((e) => e.rule).filter(Boolean));
+  const generated = Object.entries(SCORE_RULES)
+    .filter(([id]) => !covered.has(id) && id !== 'mahjong')
+    .map(([id, r]) => ({
+      id: `rule_${id}`,
+      category: r.kind === 'limit' ? 'limit' : r.kind === 'double' ? 'double' : 'points',
+      rule: id,
+      name: { de: r.de, en: r.en },
+      text: GENERIC[r.kind],
+      example: null,
+      tip: null,
+      rarity: r.kind === 'limit' ? 5 : r.scope === 'winner' ? 2 : 1,
+      standard: true,
+      generated: true,
+    }));
+  return [...LEXICON, ...generated];
+}
+
 export function lexiconById(id) {
-  return LEXICON.find((e) => e.id === id) ?? null;
+  return fullLexicon().find((e) => e.id === id) ?? null;
 }
 
 export function lexiconByRule(ruleId) {

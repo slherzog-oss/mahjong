@@ -197,7 +197,7 @@ export function renderGame(snap, ui) {
     <div class="table">
       <div class="opponents">${others.map((p) => opponentHtml(state, p, humanSeat, ui)).join('')}</div>
       <div class="center">
-        <div class="status ${acting ? 'acting' : ''}">${status}</div>
+        <div class="status ${acting ? 'acting' : ''}" aria-live="polite">${status}</div>
         ${state.lastDiscard && !state.lastDiscard.claimed && state.phase === 'claiming' ? `<div class="last-discard">${tileHtmlById(state.lastDiscard.tile)}</div>` : ''}
       </div>
       <div class="me${acting ? ' acting' : ''}">
@@ -209,7 +209,7 @@ export function renderGame(snap, ui) {
         </div>
         <div class="me-discards">${me.discards.map((id) => tileHtmlById(id, { classes: 'small' })).join('')}</div>
         <div class="me-melds">${me.melds.map(meldHtml).join('')}${me.bonus.map((id) => tileHtmlById(id, { classes: 'small bonus' })).join('')}</div>
-        <div class="hand">
+        <div class="hand" role="group" aria-label="${t('hand')}">
           ${handTiles.map(tileBtn).join('')}
           ${drawn !== null ? `<span class="drawn">${tileBtn(drawn)}</span>` : ''}
         </div>

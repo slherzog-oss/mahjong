@@ -17,7 +17,9 @@ const root = document.getElementById('app');
 
 // Worker für Monte-Carlo (Gewinnchance); fällt ohne Worker-Unterstützung still aus.
 const mc = { worker: null, key: null, result: null, pending: null, id: 0 };
+const noWorker = new URLSearchParams(location.search).has('noworker');
 try {
+  if (noWorker) throw new Error('worker deaktiviert');
   mc.worker = new Worker(new URL('../analysis/worker.js', import.meta.url), { type: 'module' });
   mc.worker.onmessage = (ev) => {
     const { id, type, result } = ev.data;
