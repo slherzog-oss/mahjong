@@ -6,6 +6,9 @@ import { seatWind, getLegalActions } from '../core/state.js';
 import { shanten } from '../analysis/shanten.js';
 import { evaluateDiscards, valuePotential } from '../analysis/evaluate.js';
 import { formDiscardOptions, formKeepKinds } from '../analysis/forms.js';
+import { callKeepsWinnable } from '../analysis/yaku.js';
+import { isFuriten } from '../core/state.js';
+import { ukeire, visibleCounts, remainingCounts } from '../analysis/ukeire.js';
 
 export { valuePotential };
 
@@ -21,7 +24,9 @@ export function adviseDiscard(state, seat, { target = null } = {}) {
   const { options, progress } = evaluateDiscards(state, seat);
   const hints = specialHandHints(kinds, melds, state.ruleSet, seatWind(state, seat), state.roundWind);
   const free = options[0];
-  if (!target) return { best: free, alternatives: options.slice(1, 3), options, hints, progress, target: null };
+  const riichi = riichiAdvice(state, seat, free);
+  const furiten = state.ruleSet.variant === 'riichi' && free.shanten <= 0 && isFuriten(state, { ...p, hand: p.hand.filter((id) => kindOf(id) !== free.kind || p.hand.indexOf(id) !== p.hand.findIndex((x) => kindOf(x) === free.kind)) });
+  if (!target) return { best: free, alternatives: options.slice(1, 3), options, hints, progress, target: null, riichi, furiten };
 
   // Zielmodus: Distanz und Ukeire der Zielform entscheiden, Gefahr/Wert aus der freien Bewertung
   const byKind = new Map(options.map((o) => [o.kind, o]));
@@ -45,7 +50,24 @@ export function adviseDiscard(state, seat, { target = null } = {}) {
     targetReachable: !!reachable,
     freeBest: free,
     keep: reachable ? formKeepKinds(state, seat, target) : new Set(),
+    riichi,
+    furiten,
   };
+}
+
+/** Riichi: Empfehlung zur Ansage, wenn der beste Abwurf die Hand wartend lässt. */
+function riichiAdvice(state, seat, best) {
+  if (state.ruleSet.variant !== 'riichi') return null;
+  const legal = getLegalActions(state, seat);
+  const option = legal.find((a) => a.type === 'riichi' && kindOf(a.tile) === best.kind) ?? legal.find((a) => a.type === 'riichi');
+  if (!option) return null;
+  const p = state.players[seat];
+  const kinds = p.hand.map(kindOf);
+  const rest = kinds.slice();
+  rest.splice(rest.indexOf(kindOf(option.tile)), 1);
+  const { visible } = visibleCounts(state, seat);
+  const u = ukeire(rest, p.melds.length, state.ruleSet, remainingCounts(visible));
+  return { tile: option.tile, kind: kindOf(option.tile), waits: u.tiles.map((t) => t.kind), total: u.total };
 }
 
 /** Empfehlung bei Call-Angebot: { action, reason: {…}, before, after }. */
@@ -63,6 +85,7 @@ export function adviseClaim(state, seat) {
   let best = legal.find((a) => a.type === 'pass');
   let bestAfter = before;
   let reason = { key: 'noGain' };
+  let blocked = null;
   for (const a of legal) {
     if (a.type === 'pass') continue;
     const rest = kinds.slice();
@@ -71,11 +94,15 @@ export function adviseClaim(state, seat) {
     for (const k of remove) rest.splice(rest.indexOf(k), 1);
     const after = shanten(rest, meldCount + 1, rs).min;
     if (after < bestAfter) {
+      const meldsAfter = [...p.melds.map((m) => ({ type: m.type, kinds: m.kinds, open: m.open })), { type: a.type === 'chow' ? 'chow' : a.type, kinds: a.type === 'chow' ? [...a.kinds, calledKind] : [calledKind, calledKind, calledKind], open: true }];
+      const w = callKeepsWinnable(state, seat, rest, meldsAfter);
+      if (!w.ok) { blocked = w.reason; continue; }
       best = a;
       bestAfter = after;
       reason = { key: 'gain', before, after, opensHand: meldCount === 0 };
     }
   }
+  if (best.type === 'pass' && blocked) reason = { key: blocked, before };
   if (best.type === 'pass' && meldCount === 0 && before <= 2) reason = { key: 'keepConcealed', before };
   return { action: best, reason, before, after: bestAfter };
 }

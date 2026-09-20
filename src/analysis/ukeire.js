@@ -19,6 +19,9 @@ export function visibleCounts(state, seat) {
     p.discards.forEach(add);
     p.melds.forEach((m) => m.tiles.forEach(add));
   }
+  // Riichi: aufgedeckte Dora-Anzeiger sind öffentlich
+  const ind = state.wall.indicators ?? [];
+  for (let i = 0; i < Math.min(ind.length, state.doraRevealed ?? 0); i++) if (typeof ind[i] === 'number') add(ind[i]);
   return { visible: v, unseen: 136 - seen };
 }
 

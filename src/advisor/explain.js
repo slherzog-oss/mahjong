@@ -17,7 +17,15 @@ export function explainDiscard(advice) {
     }
     return out;
   }
-  out.push(t('adv.best', { tile: KIND_NAMES[best.kind], shanten: best.shanten, ukeire: best.total, pct: Math.round(best.chance * 100) }));
+  if (advice.riichi && advice.riichi.kind === best.kind) {
+    out.push(t('adv.riichi', { tile: KIND_NAMES[best.kind], n: advice.riichi.total, waits: advice.riichi.waits.map((k) => KIND_NAMES[k]).join(' ') }));
+  } else if (advice.riichi) {
+    out.push(t('adv.best', { tile: KIND_NAMES[best.kind], shanten: best.shanten, ukeire: best.total, pct: Math.round(best.chance * 100) }));
+    out.push(t('adv.riichiAlt', { tile: KIND_NAMES[advice.riichi.kind], n: advice.riichi.total }));
+  } else {
+    out.push(t('adv.best', { tile: KIND_NAMES[best.kind], shanten: best.shanten, ukeire: best.total, pct: Math.round(best.chance * 100) }));
+  }
+  if (advice.furiten) out.push(t('adv.furiten'));
   if (best.visibleCopies >= 3) out.push(t('adv.safe', { tile: KIND_NAMES[best.kind] }));
   else if (best.honour && best.visibleCopies >= 2) out.push(t('adv.honourSeen', { tile: KIND_NAMES[best.kind] }));
   if (best.breaksPair) out.push(t('adv.breaksPair'));
@@ -44,6 +52,8 @@ export function explainClaim(advice) {
     case 'mahjong': return [t('advisorMahjong')];
     case 'gain': return [t('adv.claimGain', { action: name, before: reason.before, after: reason.after }), ...(reason.opensHand ? [t('adv.opensHand')] : [])];
     case 'keepConcealed': return [t('adv.keepConcealed', { shanten: reason.before })];
+    case 'noYaku': return [t('adv.noYaku')];
+    case 'lowFan': return [t('adv.lowFan')];
     default: return [t('adv.claimNoGain')];
   }
 }

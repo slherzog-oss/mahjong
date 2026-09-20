@@ -1,7 +1,16 @@
 // Zug-Schleife: lässt KI-Sitze automatisch handeln, bis ein menschlicher Sitz
 // dran ist oder die Hand/das Spiel endet.
 import { applyAction, seatsToAct } from '../core/state.js';
+import { createRngState } from '../core/rng.js';
 import { chooseAction } from './player.js';
+
+/**
+ * Zufall für die KI ohne Eingriff in den Spielzufall: aus Seed und Zugnummer
+ * abgeleitet, damit Replays aus der Aktionsliste exakt bleiben.
+ */
+export function aiRngFor(state) {
+  return createRngState(`${state.seed}:ai:${state.actions.length}`);
+}
 
 /**
  * Führt genau eine KI-Aktion aus (erster KI-Sitz, der handeln muss).
@@ -12,7 +21,7 @@ export function stepAI(state, options = {}) {
   for (const seat of seatsToAct(state)) {
     if (!isAI(seat)) continue;
     const difficulty = typeof options.difficulty === 'function' ? options.difficulty(seat) : options.difficulty;
-    const action = chooseAction(state, seat, { difficulty, rng: options.rng });
+    const action = chooseAction(state, seat, { difficulty, rng: options.rng ?? aiRngFor(state) });
     if (!action) continue;
     return { state: applyAction(state, action), action, seat };
   }

@@ -202,6 +202,11 @@ export const de = {
     hintHalfFlush: 'Eine Farbe mit Honours ({suit}): 1 Verdopplung.',
     hintFlushPossible: 'Die Hand tendiert zu {suit}; eine Farbe wäre möglich.',
     hintAllPungs: 'Viele Paare: Nur-Pungs-Hand (1 Verdopplung) ist in Reichweite.',
+    riichi: 'Riichi ansagen und {tile} abwerfen: die Hand wartet auf {n} Steine ({waits}).',
+    riichiAlt: 'Alternativ Riichi mit {tile} ({n} Wartesteine).',
+    furiten: 'Achtung Furiten: ein eigener Abwurf gehört zu deinen Wartesteinen. Ron ist dann nicht erlaubt, nur Selbstzug.',
+    noYaku: 'Passen: nach dem Ruf hätte die Hand kein Yaku mehr und könnte nicht gewinnen.',
+    lowFan: 'Passen: nach dem Ruf käme die Hand kaum auf die Mindest-Fan.',
     dangerousGame: 'Gefährliches Spiel (DMJL): {tiles} wären gegen eine offene Auslage riskant. Wer damit ein Mahjong ermöglicht, zahlt für alle drei.',
   },
 };

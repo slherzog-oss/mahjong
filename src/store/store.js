@@ -11,7 +11,7 @@ import { NUM_KINDS, countsFromKinds, kindOf } from '../core/tiles.js';
 import { RULE_PRESETS, RULE_FIELDS } from '../core/presets.js';
 import { createRuleSet } from '../core/rules.js';
 import { stepAI } from '../ai/runner.js';
-import { scoreRound } from '../scoring/millington.js';
+import { scoreRound } from '../scoring/index.js';
 import { memoryAdapter } from './persistence.js';
 
 export const SAVE_KEY = 'current';
@@ -161,7 +161,7 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
   function settleHand() {
     const result = scoreRound(state);
     lastScore = result;
-    set(applyPayments(state, result.payments));
+    set(applyPayments(state, result.payments, result.bonus ?? null));
   }
 
   const api = {
@@ -361,7 +361,7 @@ function migrate(data) {
 function sameAction(a, b) {
   if (a.type !== b.type) return false;
   // getLegalActions nennt je Art nur eine Stein-ID; jede Kopie derselben Art ist erlaubt
-  if (a.type === 'discard') return b.tile === undefined || a.tile === b.tile || kindOf(a.tile) === kindOf(b.tile);
+  if (a.type === 'discard' || a.type === 'riichi') return b.tile === undefined || a.tile === b.tile || kindOf(a.tile) === kindOf(b.tile);
   if (a.type === 'chow') return a.kinds[0] === b.kinds?.[0] && a.kinds[1] === b.kinds?.[1];
   if (a.type === 'kong') return a.variant === b.variant && (a.kind === undefined || a.kind === b.kind);
   return true;

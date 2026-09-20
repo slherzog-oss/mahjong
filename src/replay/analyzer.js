@@ -65,7 +65,7 @@ export function analyzeGame(record, { seat = record.humanSeat ?? 0, onProgress =
     }
     const before = s;
     let decision = null;
-    if (a.seat === seat && before.phase === 'discard' && (a.type === 'discard' || a.type === 'mahjong' || a.type === 'kong')) {
+    if (a.seat === seat && before.phase === 'discard' && (a.type === 'discard' || a.type === 'riichi' || a.type === 'mahjong' || a.type === 'kong')) {
       decision = analyzeDiscardDecision(before, a, seat);
     } else if (a.seat === seat && before.phase === 'claiming' && ['pass', 'chow', 'pung', 'kong', 'mahjong'].includes(a.type)) {
       decision = analyzeClaimDecision(before, a, seat);
@@ -83,7 +83,7 @@ export function analyzeGame(record, { seat = record.humanSeat ?? 0, onProgress =
         summary[decision.cls]++;
       }
     }
-    if (current && a.seat === seat && (a.type === 'discard' || a.type === 'draw' || decision)) {
+    if (current && a.seat === seat && (a.type === 'discard' || a.type === 'riichi' || a.type === 'draw' || decision)) {
       current.curve.push({ index, turn: s.turn, chance: chanceOf(s, seat) });
     }
     if (current && (s.phase === 'handOver') && !current.result) {

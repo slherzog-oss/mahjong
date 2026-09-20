@@ -15,6 +15,8 @@ import { evaluateDiscards } from '../analysis/evaluate.js';
 import { dangerOf } from '../analysis/danger.js';
 import { nextFloat, nextInt } from '../core/rng.js';
 import { dangerousKindsInHand } from '../core/dangerous.js';
+import { callKeepsWinnable } from '../analysis/yaku.js';
+import { ukeire } from '../analysis/ukeire.js';
 
 export { dangerOf };
 
@@ -81,10 +83,13 @@ export function chooseAction(state, seat, options = {}) {
   if (mj) return mj;
 
   switch (state.phase) {
-    case 'discard':
+    case 'discard': {
+      const riichi = bestRiichi(state, seat, legal);
+      if (riichi) return riichi;
       return difficulty === 'easy' ? easyDiscard(state, seat, legal, rng) : smartDiscard(state, seat, legal, rng, difficulty);
+    }
     case 'claiming':
-      return difficulty === 'easy' ? easyClaim(legal) : smartClaim(state, seat, legal, difficulty);
+      return difficulty === 'easy' ? easyClaim(state, seat, legal) : smartClaim(state, seat, legal, difficulty);
     default:
       return legal[0];
   }
@@ -111,6 +116,37 @@ function progress(state) {
 }
 
 
+/** Riichi: wartende Hand ansagen; unter mehreren Abwürfen den mit den meisten Wartesteinen. */
+export function bestRiichi(state, seat, legal) {
+  const options = legal.filter((a) => a.type === 'riichi');
+  if (!options.length) return null;
+  const kinds = handKinds(state, seat);
+  const melds = meldCount(state, seat);
+  const { visible } = visibleCounts(state, seat);
+  const remaining = remainingCounts(visible);
+  let best = null, bestWaits = -1;
+  for (const a of options) {
+    const rest = kinds.slice();
+    rest.splice(rest.indexOf(kindOf(a.tile)), 1);
+    const u = ukeire(rest, melds, state.ruleSet, remaining);
+    if (u.total > bestWaits) { bestWaits = u.total; best = a; }
+  }
+  return best;
+}
+
+/** Ruf nur, wenn die Hand danach noch gewinnbar bleibt (Yaku in Riichi, Mindest-Fan in Hong Kong). */
+function callAllowed(state, seat, a) {
+  if (state.ruleSet.variant === 'classical') return true;
+  const kinds = handKinds(state, seat);
+  const calledKind = state.pendingKong ? state.pendingKong.kind : kindOf(state.lastDiscard.tile);
+  const remove = a.type === 'pung' ? [calledKind, calledKind] : a.type === 'kong' ? [calledKind, calledKind, calledKind] : a.type === 'chow' ? a.kinds : [];
+  const rest = kinds.slice();
+  for (const k of remove) rest.splice(rest.indexOf(k), 1);
+  const p = state.players[seat];
+  const melds = [...p.melds.map((m) => ({ type: m.type, kinds: m.kinds, open: m.open })), { type: a.type === 'chow' ? 'chow' : a.type, kinds: a.type === 'chow' ? [...a.kinds, calledKind] : [calledKind, calledKind, calledKind], open: true }];
+  return callKeepsWinnable(state, seat, rest, melds).ok;
+}
+
 // ---------- Anfänger ----------
 
 function easyDiscard(state, seat, legal, rng) {
@@ -127,8 +163,9 @@ function easyDiscard(state, seat, legal, rng) {
   return pool[nextInt(rng, pool.length)];
 }
 
-function easyClaim(legal) {
-  return legal.find((a) => a.type === 'kong') ?? legal.find((a) => a.type === 'pung') ?? legal.find((a) => a.type === 'chow') ?? legal.find((a) => a.type === 'pass');
+function easyClaim(state, seat, legal) {
+  const ok = legal.filter((a) => a.type === 'pass' || callAllowed(state, seat, a));
+  return ok.find((a) => a.type === 'kong') ?? ok.find((a) => a.type === 'pung') ?? ok.find((a) => a.type === 'chow') ?? legal.find((a) => a.type === 'pass');
 }
 
 // ---------- Mittel / Schwer ----------
@@ -152,8 +189,11 @@ function smartDiscard(state, seat, legal, rng, difficulty) {
     if (after <= current) return a;
   }
 
-  if (P.evalWeights) {
-    const { options } = evaluateDiscards(state, seat, P.evalWeights);
+  const fanMatters = rs.variant === 'hongkong' && (rs.minFan ?? 0) >= 3;
+  const evalWeights = P.evalWeights ?? (fanMatters ? AI_PARAMS.hard.evalWeights : null);
+  if (evalWeights) {
+    const weights = fanMatters ? { ...evalWeights, valueWeight: 0.2, flushWeight: 0.35, honourPairBonus: 0.08 } : evalWeights;
+    const { options } = evaluateDiscards(state, seat, weights);
     let pick = options[0];
     if (P.lookahead > 1 && pick.shanten >= 1) {
       // Unter gleich guten Kandidaten den mit der breitesten nächsten Stufe wählen
@@ -172,6 +212,10 @@ function smartDiscard(state, seat, legal, rng, difficulty) {
         }
         pick = best;
       }
+    }
+    if (!P.evalWeights) {
+      const sk = SKILL[difficulty];
+      if (sk && sk.skill < 1) pick = pickWithSkill([pick, ...options.filter((o) => o.kind !== pick.kind)], sk.skill, sk.topN, rng);
     }
     return discardActionFor(legal, pick.kind) ?? legal.find((a) => a.type === 'discard');
   }
@@ -229,6 +273,7 @@ function smartClaim(state, seat, legal, difficulty) {
   let bestGain = 0;
   for (const a of legal) {
     if (a.type === 'pass') continue;
+    if (!callAllowed(state, seat, a)) continue;
     let after;
     if (a.type === 'pung') after = afterClaim([calledKind, calledKind]);
     else if (a.type === 'kong') after = afterClaim([calledKind, calledKind, calledKind]);

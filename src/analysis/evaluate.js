@@ -64,7 +64,8 @@ export function evaluateDiscards(state, seat, weights = EVAL_DEFAULTS) {
   const { visible, unseen } = visibleCounts(state, seat);
   const remaining = remainingCounts(visible);
   const drawsLeft = drawsLeftFor(state.wall.living.length);
-  const progress = progressOf(state);
+  const anyRiichi = state.players.some((q) => q.seat !== seat && q.riichi);
+  const progress = Math.max(progressOf(state), anyRiichi ? 0.85 : 0); // Riichi am Tisch: Defensive wie im späten Spiel
   const counts = countsFromKinds(kinds);
   // DMJL "Gefährliches Spiel": solche Abwürfe kosten die Zahlung für alle, außer die ganze Hand ist gefährlich
   const penal = rs.penalties ? dangerousKindsInHand(state, seat) : new Set();

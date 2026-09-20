@@ -160,6 +160,11 @@ export const en = {
     hintHalfFlush: 'Half flush ({suit}): 1 double.',
     hintFlushPossible: 'The hand leans towards {suit}; a flush is possible.',
     hintAllPungs: 'Many pairs: an all-pungs hand (1 double) is within reach.',
+    riichi: 'Declare riichi and discard {tile}: the hand waits on {n} tiles ({waits}).',
+    riichiAlt: 'Alternatively riichi with {tile} ({n} waiting tiles).',
+    furiten: 'Careful, furiten: one of your own discards is among your waits. Ron is not allowed then, only self-draw.',
+    noYaku: 'Pass: after the call the hand would have no yaku and could not win.',
+    lowFan: 'Pass: after the call the hand would hardly reach the minimum fan.',
     dangerousGame: 'Dangerous game (DMJL): {tiles} would be risky against an exposed hand. Whoever enables a Mahjong with such a tile pays for all three.',
   },
   // Einstellungen und Regelwerk

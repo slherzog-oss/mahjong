@@ -1,5 +1,5 @@
 // Testhelfer: Zustände mit vorgegebenen Händen bauen, Züge automatisch spielen.
-import { createGame, applyAction, getLegalActions, seatsToAct } from '../src/core/state.js';
+import { createGame, applyAction, getLegalActions, seatsToAct, installWall } from '../src/core/state.js';
 import { parseKinds, kindOf, allTileIds } from '../src/core/tiles.js';
 import { nextInt } from '../src/core/rng.js';
 
@@ -47,7 +47,7 @@ export function rigGame({ hands, dealer = 0, current = 0, phase = 'discard', wal
   }
   const living = wall ? parseKinds(wall).map(take) : [];
   living.push(...pool);
-  s.wall = { living, dead: living.splice(living.length - s.ruleSet.deadWallSize, s.ruleSet.deadWallSize) };
+  installWall(s, living, living.splice(living.length - s.ruleSet.deadWallSize, s.ruleSet.deadWallSize));
   if (phase === 'discard') s.lastDraw = { seat: current, tile: s.players[current].hand.at(-1), replacement: false };
   return s;
 }

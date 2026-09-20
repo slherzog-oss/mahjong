@@ -18,9 +18,12 @@
 import { kindOf, isBonus, isSuited, suitOf, rankOf, NUM_KINDS } from './tiles.js';
 import { createRngState, shuffle } from './rng.js';
 import { buildWall, drawLiving, drawReplacement } from './wall.js';
-import { isWinningHand } from './hand.js';
+import { isWinningHand, waitingKinds } from './hand.js';
 import { createRuleSet } from './rules.js';
 import { dangerousFor, dangerousKindsInHand } from './dangerous.js';
+import { hasYaku, isTenpai } from '../scoring/riichi.js';
+import { shanten } from '../analysis/shanten.js';
+import { fanOf } from '../scoring/hongkong.js';
 
 export const PHASES = ['idle', 'draw', 'discard', 'claiming', 'handOver', 'gameOver'];
 
@@ -54,8 +57,11 @@ export function createGame({ seed = Date.now(), ruleSet = createRuleSet(), human
       bonus: [], // Bonus-IDs
       discards: [], // IDs in Abwurfreihenfolge
       target: null, // gewähltes Spielziel (Handform-ID) oder null
+      riichi: null, // Riichi: { turn, double, ippatsu, safe: kinds } oder null
+      furiten: false, // Riichi: vorübergehendes Furiten bis zum nächsten eigenen Zug
+      riichiFuriten: false, // Riichi: dauerhaftes Furiten nach Riichi
     })),
-    wall: { living: [], dead: [] },
+    wall: { living: [], dead: [], indicators: [], ura: [] }, // Riichi: Dora-Anzeiger und Ura-Dora
     current: 0,
     turn: 0, // Zähler der Abwürfe in dieser Hand
     lastDraw: null, // { seat, tile, replacement: boolean }
@@ -64,6 +70,10 @@ export function createGame({ seed = Date.now(), ruleSet = createRuleSet(), human
     pendingKong: null, // { seat, kind, meldIndex } bei Ergänzungs-Kong (Raub möglich)
     claims: {}, // seat -> action während 'claiming'
     firstDiscardDone: false, // für Earthly Hand
+    callsThisHand: false, // Riichi: Ruf oder Kan in dieser Hand (Doppel-Riichi, Chiihou)
+    honba: 0, // Riichi: Zähler für Wiederholungen (300/100 je Zähler)
+    riichiSticks: 0, // Riichi: hinterlegte 1000-Punkte-Stäbchen
+    doraRevealed: 1, // Riichi: aufgedeckte Dora-Anzeiger
     result: null, // { type: 'win'|'draw', ... }
     log: [], // Protokoll (siehe logEvent)
     actions: [], // alle angewandten Aktionen (Replay: createGame + actions)
@@ -121,6 +131,57 @@ function wins(state, p, extraKind = null) {
   return isWinningHand(kinds, meldsForHand(p), state.ruleSet);
 }
 
+function isRiichiVariant(state) {
+  return state.ruleSet.variant === 'riichi';
+}
+
+/** Eingabe für die Gewinnprüfung der Scoring-Module (Riichi-Yaku, Hong-Kong-Fan). */
+function winInput(state, p, kind, selfDraw) {
+  const concealed = selfDraw ? handKinds(p) : [...handKinds(p), kind];
+  const living = state.wall.living.length;
+  const pk = state.pendingKong;
+  return {
+    concealed, melds: meldsForHand(p), bonus: p.bonus.map(kindOf),
+    seatWind: seatWind(state, p.seat), roundWind: state.roundWind, winningKind: kind, selfDraw,
+    riichi: !!p.riichi, doubleRiichi: !!p.riichi?.double, ippatsu: !!p.riichi?.ippatsu,
+    rinshan: selfDraw && !!state.lastDraw?.replacement, kongReplacement: selfDraw && !!state.lastDraw?.replacement,
+    chankan: !selfDraw && !!pk, robbedKong: !selfDraw && !!pk,
+    haitei: selfDraw && living === 0, houtei: !selfDraw && !pk && living === 0, lastWallTile: living === 0 && !pk,
+    tenhou: selfDraw && state.turn === 0 && p.seat === state.dealer, heavenly: selfDraw && state.turn === 0 && p.seat === state.dealer,
+    chiihou: selfDraw && !state.callsThisHand && p.seat !== state.dealer && p.discards.length === 0 && !state.lastDraw?.replacement,
+    earthly: !selfDraw && !state.firstDiscardDone && state.lastDiscard?.seat === state.dealer && state.turn === 1,
+  };
+}
+
+/** Riichi: Furiten (eigener Abwurf unter den Wartesteinen, vorübergehend oder nach Riichi). */
+export function isFuriten(state, p) {
+  if (p.furiten || p.riichiFuriten) return true;
+  const waits = waitingKinds(handKinds(p), meldsForHand(p), state.ruleSet);
+  if (!waits.length) return false;
+  const own = new Set(p.discards.map(kindOf));
+  return waits.some((k) => own.has(k));
+}
+
+/** Darf p mit `kind` gewinnen? Form, Furiten und Yaku (Riichi) bzw. Mindest-Fan (Hong Kong). */
+function canWin(state, p, kind, selfDraw) {
+  if (!wins(state, p, selfDraw ? null : kind)) return false;
+  const v = state.ruleSet.variant;
+  if (v === 'riichi') {
+    if (!selfDraw && isFuriten(state, p)) return false;
+    return hasYaku(winInput(state, p, kind, selfDraw), state.ruleSet);
+  }
+  if (v === 'hongkong') return fanOf(winInput(state, p, kind, selfDraw), state.ruleSet) >= (state.ruleSet.minFan ?? 0);
+  return true;
+}
+
+function breakIppatsu(state) {
+  for (const q of state.players) if (q.riichi) q.riichi.ippatsu = false;
+}
+
+function kongsOnTable(state) {
+  return state.players.reduce((n, q) => n + q.melds.filter((m) => m.type === 'kong').length, 0);
+}
+
 /** Zieht Steine für seat; Bonussteine werden sofort ausgelegt und ersetzt. */
 function giveTile(state, seat, id, replacement = false) {
   const p = player(state, seat);
@@ -151,17 +212,40 @@ export function getLegalActions(state, seat) {
 
     case 'discard': {
       if (seat !== state.current) break;
-      if (wins(state, p)) out.push({ type: 'mahjong', seat });
+      const riichi = isRiichiVariant(state);
+      const drawn = state.lastDraw && state.lastDraw.seat === seat ? state.lastDraw.tile : null;
+      const winKind = drawn !== null ? kindOf(drawn) : state.lastDiscard ? kindOf(state.lastDiscard.tile) : null;
+      if ((!riichi || drawn !== null) && canWin(state, p, winKind, true)) out.push({ type: 'mahjong', seat });
       const counts = new Array(NUM_KINDS).fill(0);
       for (const id of p.hand) counts[kindOf(id)]++;
-      for (let k = 0; k < NUM_KINDS; k++) {
-        if (counts[k] === 4) out.push({ type: 'kong', seat, kind: k, variant: 'concealed' });
-      }
-      p.melds.forEach((m, meldIndex) => {
-        if (m.type === 'pung' && counts[m.kinds[0]] === 1) {
-          out.push({ type: 'kong', seat, kind: m.kinds[0], variant: 'extend', meldIndex });
+      const kongAllowed = !riichi || (state.wall.living.length > 0 && kongsOnTable(state) < 4);
+      if (kongAllowed) {
+        for (let k = 0; k < NUM_KINDS; k++) {
+          if (counts[k] !== 4) continue;
+          if (p.riichi) {
+            // Nach Riichi nur ein verdecktes Kan mit dem gezogenen Stein, das das Warten nicht ändert
+            if (drawn === null || kindOf(drawn) !== k) continue;
+            const before = waitingKinds(handKinds(p).filter((x, i) => i !== p.hand.indexOf(drawn)), meldsForHand(p), state.ruleSet);
+            const rest = handKinds(p).filter((x) => x !== k);
+            const after = waitingKinds(rest, [...meldsForHand(p), { type: 'kong', kinds: [k, k, k, k], open: false }], state.ruleSet);
+            if (before.join(',') !== after.join(',')) continue;
+          }
+          out.push({ type: 'kong', seat, kind: k, variant: 'concealed' });
         }
-      });
+        if (!p.riichi) {
+          p.melds.forEach((m, meldIndex) => {
+            if (m.type === 'pung' && counts[m.kinds[0]] === 1) {
+              out.push({ type: 'kong', seat, kind: m.kinds[0], variant: 'extend', meldIndex });
+            }
+          });
+        }
+      }
+      if (p.riichi) {
+        // Nach Riichi wird der gezogene Stein abgeworfen (Tsumogiri)
+        if (drawn !== null) out.push({ type: 'discard', seat, tile: drawn });
+        else out.push({ type: 'discard', seat, tile: p.hand[p.hand.length - 1] });
+        break;
+      }
       const seen = new Set();
       for (const id of p.hand) {
         // Ein Abwurf je Art reicht für KI/Berater; UI darf konkrete IDs wählen.
@@ -169,6 +253,23 @@ export function getLegalActions(state, seat) {
         if (seen.has(k)) continue;
         seen.add(k);
         out.push({ type: 'discard', seat, tile: id });
+      }
+      // Riichi-Ansage: verdeckte Hand, mindestens 1000 Punkte, mindestens 4 Wandsteine, Abwurf lässt die Hand wartend
+      if (riichi && drawn !== null && p.melds.every((m) => !m.open) && p.score >= 1000 && state.wall.living.length >= 4) {
+        const kinds = handKinds(p);
+        const mc = p.melds.length;
+        // Schnelle Vorprüfung über Shanten (gecachte Farbtabellen), Tenpai genau dann bei Shanten 0
+        if (shanten(kinds, mc, state.ruleSet).min <= 0) {
+          const seenR = new Set();
+          for (const id of p.hand) {
+            const k = kindOf(id);
+            if (seenR.has(k)) continue;
+            seenR.add(k);
+            const rest = kinds.slice();
+            rest.splice(rest.indexOf(k), 1);
+            if (shanten(rest, mc, state.ruleSet).min === 0) out.push({ type: 'riichi', seat, tile: id });
+          }
+        }
       }
       break;
     }
@@ -178,10 +279,11 @@ export function getLegalActions(state, seat) {
       if (seat === src.seat || state.claims[seat]) break;
       out.push({ type: 'pass', seat });
       const kind = state.pendingKong ? state.pendingKong.kind : kindOf(state.lastDiscard.tile);
-      if (wins(state, p, kind)) {
-        if (!state.pendingKong || state.pendingKong.robbable) out.push({ type: 'mahjong', seat });
+      if (!state.pendingKong || state.pendingKong.robbable) {
+        if (canWin(state, p, kind, false)) out.push({ type: 'mahjong', seat });
       }
       if (state.pendingKong) break; // beim Kong-Raub nur Mahjong oder pass
+      if (p.riichi) break; // nach Riichi keine Rufe
       const counts = new Array(NUM_KINDS).fill(0);
       for (const id of p.hand) counts[kindOf(id)]++;
       if (counts[kind] >= 2) out.push({ type: 'pung', seat });
@@ -259,6 +361,7 @@ export function applyAction(prev, action) {
       }
       state.lastDraw = { seat, tile: got.tile, replacement: got.replacement };
       state.replacementChain = 0;
+      player(state, seat).furiten = false;
       logEvent(state, { type: 'draw', seat, tile: got.tile });
       state.phase = 'discard';
       break;
@@ -268,17 +371,25 @@ export function applyAction(prev, action) {
       requirePhase(state, 'discard', action);
       requireSeat(state, seat, state.current, action);
       const p = player(state, seat);
-      const dangerous = state.ruleSet.penalties ? dangerousFor(state, seat, kindOf(action.tile)) : [];
-      const forced = dangerous.length > 0 && dangerousKindsInHand(state, seat).size === new Set(p.hand.map(kindOf)).size;
-      removeTileId(p.hand, action.tile);
-      p.discards.push(action.tile);
-      state.lastDiscard = { seat, tile: action.tile, claimed: false, dangerous, forced };
-      state.lastDraw = null;
-      state.replacementChain = 0;
-      state.turn++;
-      logEvent(state, { type: 'discard', seat, tile: action.tile });
-      state.claims = {};
-      state.phase = 'claiming';
+      if (p.riichi && !getLegalActions(state, seat).some((a) => a.type === 'discard' && a.tile === action.tile)) {
+        throw new IllegalAction('Nach Riichi nur der gezogene Stein', action);
+      }
+      doDiscard(state, seat, action.tile);
+      break;
+    }
+
+    case 'riichi': {
+      requirePhase(state, 'discard', action);
+      requireSeat(state, seat, state.current, action);
+      const p = player(state, seat);
+      const legal = getLegalActions(state, seat).some((a) => a.type === 'riichi' && kindOf(a.tile) === kindOf(action.tile));
+      if (!legal || !p.hand.includes(action.tile)) throw new IllegalAction('Riichi hier nicht erlaubt', action);
+      const double = !state.callsThisHand && p.discards.length === 0;
+      doDiscard(state, seat, action.tile);
+      p.riichi = { turn: state.turn, double, ippatsu: true, safe: [] };
+      p.score -= 1000;
+      state.riichiSticks++;
+      logEvent(state, { type: 'riichi', seat, tile: action.tile, double });
       break;
     }
 
@@ -292,8 +403,13 @@ export function applyAction(prev, action) {
       requireSeat(state, seat, state.current, action);
       const p = player(state, seat);
       if (action.variant === 'concealed') {
+        if (isRiichiVariant(state) && !getLegalActions(state, seat).some((a) => a.type === 'kong' && a.variant === 'concealed' && a.kind === action.kind)) {
+          throw new IllegalAction('Kan hier nicht erlaubt', action);
+        }
         const tiles = removeKinds(p.hand, action.kind, 4);
         p.melds.push({ type: 'kong', tiles, kinds: tiles.map(kindOf), open: false, from: null });
+        state.callsThisHand = true;
+        breakIppatsu(state);
         logEvent(state, { type: 'kong', seat, variant: 'concealed', kind: action.kind });
         const robbable = state.ruleSet.robKongForThirteenOrphans;
         if (robbable && someoneCanRob(state, seat, action.kind, true)) {
@@ -308,10 +424,15 @@ export function applyAction(prev, action) {
         if (!meld || meld.type !== 'pung' || meld.kinds[0] !== action.kind) {
           throw new IllegalAction('Kein passender Pung für Ergänzungs-Kong', action);
         }
+        if (isRiichiVariant(state) && !getLegalActions(state, seat).some((a) => a.type === 'kong' && a.variant === 'extend' && a.kind === action.kind)) {
+          throw new IllegalAction('Kan hier nicht erlaubt', action);
+        }
         const [tile] = removeKinds(p.hand, action.kind, 1);
         meld.type = 'kong';
         meld.tiles.push(tile);
         meld.kinds.push(action.kind);
+        state.callsThisHand = true;
+        breakIppatsu(state);
         logEvent(state, { type: 'kong', seat, variant: 'extend', kind: action.kind });
         state.pendingKong = { seat, kind: action.kind, meldIndex: action.meldIndex, robbable: true, concealed: false };
         state.claims = {};
@@ -326,7 +447,7 @@ export function applyAction(prev, action) {
       if (state.phase === 'discard') {
         requireSeat(state, seat, state.current, action);
         const p = player(state, seat);
-        if (!wins(state, p)) throw new IllegalAction('Hand ist nicht vollständig', action);
+        if (!getLegalActions(state, seat).some((a) => a.type === 'mahjong')) throw new IllegalAction('Hand ist nicht vollständig oder Gewinn nicht erlaubt', action);
         finishWin(state, {
           winner: seat,
           from: null,
@@ -369,6 +490,25 @@ export function applyAction(prev, action) {
   return state;
 }
 
+/** Abwurf ausführen (auch Teil der Riichi-Ansage). */
+function doDiscard(state, seat, tile) {
+  const p = player(state, seat);
+  const kind = kindOf(tile);
+  const dangerous = state.ruleSet.penalties ? dangerousFor(state, seat, kind) : [];
+  const forced = dangerous.length > 0 && dangerousKindsInHand(state, seat).size === new Set(p.hand.map(kindOf)).size;
+  removeTileId(p.hand, tile);
+  p.discards.push(tile);
+  if (p.riichi) p.riichi.ippatsu = false;
+  for (const q of state.players) if (q.riichi && q.seat !== seat) q.riichi.safe.push(kind);
+  state.lastDiscard = { seat, tile, claimed: false, dangerous, forced };
+  state.lastDraw = null;
+  state.replacementChain = 0;
+  state.turn++;
+  logEvent(state, { type: 'discard', seat, tile });
+  state.claims = {};
+  state.phase = 'claiming';
+}
+
 function requirePhase(state, phase, action) {
   if (state.phase !== phase) throw new IllegalAction(`Aktion ${action.type} nicht in Phase ${state.phase}`, action);
 }
@@ -379,16 +519,31 @@ function requireSeat(state, seat, expected, action) {
 
 // ---------- Hand-Ablauf ----------
 
+/** Wand einsetzen; bei Riichi wird die tote Wand in Ersatzsteine, Dora- und Ura-Anzeiger geteilt. */
+export function installWall(state, living, dead) {
+  if (isRiichiVariant(state) && dead.length >= 14) {
+    state.wall = { living, dead: dead.slice(0, 4), indicators: dead.slice(4, 9), ura: dead.slice(9, 14) };
+  } else {
+    state.wall = { living, dead, indicators: [], ura: [] };
+  }
+  state.doraRevealed = 1;
+}
+
 function startHand(state) {
   state.handNumber++;
-  state.wall = buildWall(state.rng, state.ruleSet);
+  const w = buildWall(state.rng, state.ruleSet);
+  installWall(state, w.living, w.dead);
   for (const p of state.players) {
     p.hand = [];
     p.melds = [];
     p.bonus = [];
     p.discards = [];
     p.target = null;
+    p.riichi = null;
+    p.furiten = false;
+    p.riichiFuriten = false;
   }
+  state.callsThisHand = false;
   state.turn = 0;
   state.lastDraw = null;
   state.lastDiscard = null;
@@ -427,6 +582,7 @@ function kongReplacement(state, seat) {
   }
   state.lastDraw = { seat, tile: got.tile, replacement: true };
   state.replacementChain++;
+  if (isRiichiVariant(state)) state.doraRevealed = Math.min(state.wall.indicators.length, state.doraRevealed + 1);
   logEvent(state, { type: 'draw', seat, tile: got.tile, replacement: true });
   state.current = seat;
   state.phase = 'discard';
@@ -463,6 +619,18 @@ function resolveClaims(state) {
   const src = state.pendingKong ? state.pendingKong.seat : state.lastDiscard.seat;
   const claims = Object.values(state.claims);
   const order = (s) => (s - src + 4) % 4; // Nähe zum Abwerfenden
+
+  if (isRiichiVariant(state)) {
+    // Furiten: wer einen Stein passieren lässt, der seine Hand vervollständigt hätte
+    const kind = state.pendingKong ? state.pendingKong.kind : kindOf(state.lastDiscard.tile);
+    for (const q of state.players) {
+      if (q.seat === src || state.claims[q.seat]?.type === 'mahjong') continue;
+      if (wins(state, q, kind)) {
+        q.furiten = true;
+        if (q.riichi) q.riichiFuriten = true;
+      }
+    }
+  }
 
   // 1. Mahjong (nächster in Spielreihenfolge gewinnt)
   const mj = claims.filter((c) => c.type === 'mahjong').sort((a, b) => order(a.seat) - order(b.seat));
@@ -511,6 +679,9 @@ function resolveClaims(state) {
     const p = player(state, pk.seat);
     player(state, src).discards.pop();
     state.lastDiscard.claimed = true;
+    state.callsThisHand = true;
+    breakIppatsu(state);
+    p.furiten = false;
     if (pk.type === 'pung') {
       const tiles = [...removeKinds(p.hand, kind, 2), tile];
       p.melds.push({ type: 'pung', tiles, kinds: tiles.map(kindOf), open: true, from: src });
@@ -538,6 +709,9 @@ function resolveClaims(state) {
     state.lastDiscard.claimed = true;
     const tiles = [removeKinds(p.hand, ch.kinds[0], 1)[0], removeKinds(p.hand, ch.kinds[1], 1)[0], tile];
     tiles.sort((a, b) => kindOf(a) - kindOf(b));
+    state.callsThisHand = true;
+    breakIppatsu(state);
+    p.furiten = false;
     p.melds.push({ type: 'chow', tiles, kinds: tiles.map(kindOf), open: true, from: src });
     logEvent(state, { type: 'chow', seat: ch.seat, from: src, tile });
     state.current = ch.seat;
@@ -563,13 +737,19 @@ function finishWin(state, info) {
   // DMJL: Abwurf war offensichtlich gefährlich für den Gewinner (und nicht erzwungen)
   const ld = state.lastDiscard;
   const dangerousGame = !info.selfDraw && !info.robbedKong && !!ld && ld.tile === info.winningTile && !ld.forced && (ld.dangerous ?? []).includes(info.winner);
+  const wp = player(state, info.winner);
+  const chiihou = info.selfDraw && !state.callsThisHand && info.winner !== state.dealer && wp.discards.length === 0 && !info.kongReplacement;
   state.result = {
     type: 'win',
     ...info,
     heavenly,
     earthly,
+    chiihou,
     twofoldFortune,
     dangerousGame,
+    riichi: !!wp.riichi,
+    honba: state.honba,
+    riichiSticks: state.riichiSticks,
     roundWind: state.roundWind,
     dealer: state.dealer,
   };
@@ -581,8 +761,11 @@ function finishWin(state, info) {
 }
 
 function finishDraw(state) {
-  state.result = { type: 'draw', roundWind: state.roundWind, dealer: state.dealer };
-  logEvent(state, { type: 'draw_game' });
+  state.result = { type: 'draw', roundWind: state.roundWind, dealer: state.dealer, honba: state.honba, riichiSticks: state.riichiSticks };
+  if (isRiichiVariant(state)) {
+    state.result.tenpai = state.players.map((p) => isTenpai(handKinds(p), meldsForHand(p), state.ruleSet));
+  }
+  logEvent(state, { type: 'draw_game', tenpai: state.result.tenpai ?? null });
   state.pendingKong = null;
   state.claims = {};
   state.phase = 'handOver';
@@ -592,10 +775,19 @@ function endHand(state) {
   const r = state.result;
   const rs = state.ruleSet;
   let dealerKeeps = false;
-  if (r.type === 'win') dealerKeeps = rs.dealerKeepsOnWin && r.winner === state.dealer;
+  if (isRiichiVariant(state)) {
+    if (r.type === 'win') {
+      dealerKeeps = rs.dealerKeepsOnWin && r.winner === state.dealer;
+      state.honba = dealerKeeps ? state.honba + 1 : 0;
+      state.riichiSticks = 0;
+    } else {
+      dealerKeeps = rs.dealerKeepsOnDraw && !!r.tenpai?.[state.dealer];
+      state.honba++;
+    }
+  } else if (r.type === 'win') dealerKeeps = rs.dealerKeepsOnWin && r.winner === state.dealer;
   else dealerKeeps = rs.dealerKeepsOnDraw;
 
-  logEvent(state, { type: 'end_hand', result: r.type, winner: r.winner ?? null, dealerKeeps });
+  logEvent(state, { type: 'end_hand', result: r.type, winner: r.winner ?? null, dealerKeeps, honba: state.honba });
   if (dealerKeeps) {
     state.dealerRepeat++;
   } else {
@@ -604,8 +796,18 @@ function endHand(state) {
     if (state.dealer === 0) state.roundWind++;
   }
   state.result = null;
-  state.phase = state.roundWind >= rs.rounds ? 'gameOver' : 'idle';
-  if (state.phase === 'gameOver') logEvent(state, { type: 'game_over', scores: state.players.map((p) => p.score) });
+  const bust = isRiichiVariant(state) && rs.bustEnds && state.players.some((p) => p.score < 0);
+  state.phase = state.roundWind >= rs.rounds || bust ? 'gameOver' : 'idle';
+  if (state.phase === 'gameOver') {
+    if (state.riichiSticks > 0) {
+      // Verbliebene Stäbchen gehen an den Führenden
+      const leader = [...state.players].sort((a, b) => b.score - a.score)[0];
+      leader.score += 1000 * state.riichiSticks;
+      logEvent(state, { type: 'sticks_to_leader', seat: leader.seat, sticks: state.riichiSticks });
+      state.riichiSticks = 0;
+    }
+    logEvent(state, { type: 'game_over', scores: state.players.map((p) => p.score), bust });
+  }
 }
 
 /**
@@ -630,6 +832,9 @@ export function rigDeal(prev, seat, kinds) {
     p.melds = [];
     p.bonus = [];
     p.discards = [];
+    p.riichi = null;
+    p.furiten = false;
+    p.riichiFuriten = false;
     if (p.seat === seat) p.hand = hand;
     else p.hand = pool.splice(0, p.seat === state.dealer ? 14 : 13);
   }
@@ -643,7 +848,8 @@ export function rigDeal(prev, seat, kinds) {
       }
     }
   }
-  state.wall = { living: pool, dead: pool.splice(pool.length - state.ruleSet.deadWallSize, state.ruleSet.deadWallSize) };
+  const deadTiles = pool.splice(pool.length - state.ruleSet.deadWallSize, state.ruleSet.deadWallSize);
+  installWall(state, pool, deadTiles);
   const dealer = player(state, state.dealer);
   state.lastDraw = { seat: state.dealer, tile: dealer.hand[dealer.hand.length - 1], replacement: false };
   state.log = state.log.filter((e) => e.type !== 'deal');
@@ -670,8 +876,8 @@ export function replay({ seed, ruleSet, humanSeat = 0, actions }, onStep = null)
   return s;
 }
 
-/** Punkte nach einer Hand verbuchen (Zahlungsmatrix aus dem Scoring-Modul). */
-export function applyPayments(prev, payments) {
+/** Punkte nach einer Hand verbuchen (Zahlungsmatrix aus dem Scoring-Modul; bonus: Beträge vom Tisch, z. B. Riichi-Stäbchen). */
+export function applyPayments(prev, payments, bonus = null) {
   const state = clone(prev);
   for (let from = 0; from < 4; from++) {
     for (let to = 0; to < 4; to++) {
@@ -680,7 +886,8 @@ export function applyPayments(prev, payments) {
       state.players[to].score += v;
     }
   }
-  logEvent(state, { type: 'payments', payments });
+  if (bonus) for (let s = 0; s < 4; s++) state.players[s].score += bonus[s] || 0;
+  logEvent(state, { type: 'payments', payments, bonus: bonus ?? null });
   return state;
 }
 
@@ -691,7 +898,11 @@ export function viewFor(state, seat) {
   return {
     ...state,
     rng: undefined,
-    wall: { livingCount: state.wall.living.length, deadCount: state.wall.dead.length },
+    wall: {
+      livingCount: state.wall.living.length,
+      deadCount: state.wall.dead.length + (state.wall.indicators?.length ?? 0) + (state.wall.ura?.length ?? 0),
+      indicators: (state.wall.indicators ?? []).slice(0, state.doraRevealed ?? 0),
+    },
     players: state.players.map((p) =>
       p.seat === seat || state.phase === 'handOver' || state.phase === 'gameOver'
         ? p
