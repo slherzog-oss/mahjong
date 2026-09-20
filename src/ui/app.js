@@ -11,6 +11,7 @@ import { kindOf, KIND_NAMES } from '../core/tiles.js';
 import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
 import { t, setLanguage, setOverrides } from '../i18n/index.js';
 import { renderTutorial } from './tutorial.js';
+import { playSound } from './sound.js';
 import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, keepAwake, vibrate, isStandalone } from './pwa.js';
 
 const root = document.getElementById('app');
@@ -70,22 +71,30 @@ function render(snap) {
   else if (state.phase === 'handOver') html = renderHandOver(snap);
   else html = renderGame(snap, ui);
   ui.mc = mc.key && state && mc.key === `${state.seed}:${state.handNumber}:${state.log.length}` ? mc.result : null;
-  const showTutorial = ui.tutorial !== null && ui.tutorial !== undefined ? ui.tutorial >= 0 : (!snap.settings.tutorialDone && !state && !ui.screen);
-  if (showTutorial && (ui.tutorial === null || ui.tutorial === undefined)) ui.tutorial = 0;
-  root.innerHTML = renderBanner(ui.pwa) + html + (ui.tutorial >= 0 ? renderTutorial(ui.tutorial) : '');
+  if (!Number.isInteger(ui.tutorial) && !snap.settings.tutorialDone && !state && !ui.screen) ui.tutorial = 0;
+  const tutorialOpen = Number.isInteger(ui.tutorial) && ui.tutorial >= 0;
+  root.innerHTML = renderBanner(ui.pwa) + html + (tutorialOpen ? renderTutorial(ui.tutorial) : '');
   requestMonteCarlo(snap);
   // Lernmodus: Empfehlung automatisch nach jedem eigenen Zug
-  if (snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== key(state)) {
-    ui.learnKey = key(state);
+  if (snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {
+    ui.learnKey = stateKey(state);
     ui.formsOpen = true;
     advise();
   }
   const inHand = !!state && !['handOver', 'gameOver', 'idle'].includes(state.phase);
   pwa.wantAwake = inHand;
   keepAwake(inHand);
-  if (state && snap.humanToAct && state.phase === 'claiming' && ui.lastVibrateKey !== key(state)) {
-    ui.lastVibrateKey = key(state);
+  if (state && snap.humanToAct && state.phase === 'claiming' && ui.lastVibrateKey !== stateKey(state)) {
+    ui.lastVibrateKey = stateKey(state);
     vibrate(30);
+    if (snap.settings.sounds) playSound('call');
+  }
+  if (state && snap.settings.sounds && ui.lastSoundKey !== stateKey(state)) {
+    ui.lastSoundKey = stateKey(state);
+    const last = state.log.at(-1);
+    if (last?.type === 'discard') playSound('discard');
+    else if (last?.type === 'mahjong') playSound(last.seat === snap.humanSeat ? 'win' : 'lose');
+    else if (['pung', 'chow', 'kong'].includes(last?.type)) playSound('claim');
   }
   const key = state ? `${state.handNumber}:${state.turn}:${state.phase}:${state.log.length}` : '';
   if (key !== lastPhaseKey) {
@@ -97,7 +106,7 @@ function render(snap) {
   document.body.classList.toggle('in-game', !!state);
 }
 
-function key(state) {
+function stateKey(state) {
   return `${state.handNumber}:${state.log.length}`;
 }
 

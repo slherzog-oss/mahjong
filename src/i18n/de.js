@@ -151,6 +151,7 @@ export const de = {
   aiDelay: 'KI-Tempo',
   aiDelays: { 0: 'sofort', 250: 'schnell', 450: 'normal', 900: 'gemächlich' },
   animations: 'Animationen',
+  sounds: 'Töne',
   learnMode: 'Lernmodus',
   learnModeHint: 'Empfehlung und mögliche Blätter erscheinen automatisch nach jedem Zug.',
   tutorial: 'Einführung',

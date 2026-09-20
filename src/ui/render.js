@@ -48,6 +48,7 @@ export function renderStart(snap) {
       <label><input type="checkbox" data-setting="learnMode" ${s.learnMode ? 'checked' : ''}> ${t('learnMode')}</label>
       <p class="muted small">${t('learnModeHint')}</p>
       <label><input type="checkbox" data-setting="animations" ${s.animations ? 'checked' : ''}> ${t('animations')}</label>
+      <label><input type="checkbox" data-setting="sounds" ${s.sounds ? 'checked' : ''}> ${t('sounds')}</label>
       <div class="names">
         <span>${t('playerNamesLabel')}</span>
         ${s.playerNames.map((n, i) => `<input type="text" maxlength="12" value="${esc(n)}" data-player-name="${i}" aria-label="${t('playerNamesLabel')} ${i + 1}">`).join('')}

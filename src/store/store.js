@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS = {
   showChance: true,
   showForms: true,
   animations: true,
+  sounds: false,
   learnMode: false,
   tutorialDone: false,
 };
@@ -37,7 +38,7 @@ export const DEFAULT_SETTINGS = {
 /** Alte Einstellungen (flache Regelfelder) auf das aktuelle Format bringen. */
 function normalizeSettings(s) {
   const out = { ...DEFAULT_SETTINGS, ...s };
-  out.rules = { ...RULE_PRESETS.millington, ...(s.rules ?? {}) };
+  out.rules = { ...(RULE_PRESETS[s.preset] ?? RULE_PRESETS.millington), ...(s.rules ?? {}) };
   for (const k of ['bonusTiles', 'sevenPairs', 'limit']) if (s[k] !== undefined && s.rules === undefined) out.rules[k] = s[k];
   delete out.bonusTiles; delete out.sevenPairs; delete out.limit;
   if (!Array.isArray(out.playerNames) || out.playerNames.length !== 3) out.playerNames = [...DEFAULT_SETTINGS.playerNames];

@@ -3,6 +3,19 @@
 Chinese Classical Mahjong (nach A. D. Millington) als Progressive Web App.
 Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 
+## Funktionen
+
+- Spiel gegen drei KI-Gegner in drei Stufen, vollständiges Regelwerk nach Millington
+  mit Voreinstellungen (Millington, BMJA, DMJL) und allen Regeloptionen
+- Live-Berater mit Begründung, Fertigstellungs- und Gewinnchance (Monte-Carlo),
+  Panel "Mögliche Blätter" mit wählbarem Spielziel
+- Hand-Lexikon mit Beispielen, Tipps und Übungshänden; Einführung und Lernmodus
+- Undo, Autosave (IndexedDB), Export/Import, Archiv und Post-Game-Analyse mit
+  Fehlerklassen und Chancen-Kurve
+- Deutsch und Englisch, Handy und Desktop, installierbar, offline
+
+Stand der Umsetzung: `docs/STATUS.md`.
+
 - `PLAN.md` — ausführlicher Projektplan
 - `RESEARCH.md` — Recherche zu bestehenden Open-Source-Projekten
 - `src/core` — Regel-Kern (Steine, Wand, Zustand, Aktionen, Hand-Validierung), siehe `docs/ENGINE.md`

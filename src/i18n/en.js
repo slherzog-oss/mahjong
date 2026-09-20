@@ -181,6 +181,7 @@ export const en = {
   aiDelay: 'AI speed',
   aiDelays: { 0: 'instant', 250: 'fast', 450: 'normal', 900: 'slow' },
   animations: 'Animations',
+  sounds: 'Sounds',
   learnMode: 'Learning mode',
   learnModeHint: 'Advice and possible hands are shown automatically after every draw.',
   tutorial: 'Introduction',
