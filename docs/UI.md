@@ -16,9 +16,21 @@ letzte Abrechnungsergebnis; das UI abonniert über `subscribe(fn)`.
   `applyPayments`); `lastScore` enthält Punktezettel, Zahlungsmatrix und Bilanz.
 - Undo springt zum letzten Zustand, in dem der Mensch handeln musste (nicht nur
   einen KI-Zug zurück). Verlauf wird pro Hand geleert.
-- Autosave nach jeder Änderung in `localStorage` (`mahjong.save.v1`),
-  Einstellungen in `mahjong.settings.v1`. Umstellung auf IndexedDB folgt in
-  Schritt 8.
+- Autosave nach jeder Änderung über einen asynchronen Persistenz-Adapter
+  (`src/store/persistence.js`): IndexedDB (Datenbank `mahjong`, Stores `saves`
+  und `archive`), Fallback localStorage, dann Speicher. Überlappende
+  Schreibvorgänge werden zusammengefasst; `flush()` wartet auf den letzten.
+  Einstellungen liegen synchron in `localStorage` (`mahjong.settings.v1`).
+- Spielstand-Format mit `version`; `migrate()` im Store ist die Stelle für
+  spätere Formatänderungen. `checkSave()` prüft beim Start asynchron, ob ein
+  Spielstand existiert ("Fortsetzen").
+- Beendete Partien wandern ins Archiv (`archive`): Seed, Regelwerk, Sitz,
+  Endstände, vollständiges Protokoll. `listArchive()` liefert sie sortiert;
+  Grundlage für die Post-Game-Analyse.
+- Export/Import: `exportSave()` liefert JSON (Download-Knopf im
+  Abrechnungsbildschirm), `importSave(text)` lädt eine Datei (Startbildschirm).
+- Beim ersten "Neues Spiel" fragt die App `navigator.storage.persist()` an,
+  damit der Browser die Daten nicht bei Platzmangel räumt.
 
 ## Rendering (`src/ui/render.js`)
 

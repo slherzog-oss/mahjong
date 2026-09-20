@@ -65,6 +65,8 @@ export const de = {
   advisorClaim: 'Empfehlung: {action}.',
   version: 'Version',
   installHint: 'Diese App lässt sich auf dem Startbildschirm installieren.',
+  exportGame: 'Spielstand exportieren',
+  importGame: 'Spielstand importieren',
 };
 
 export function t(key, vars = {}) {

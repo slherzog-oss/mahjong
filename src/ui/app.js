@@ -1,5 +1,6 @@
 // App: verbindet Store, Rendering und Ereignisse.
 import { createStore } from '../store/store.js';
+import { defaultAdapter, requestPersistentStorage } from '../store/persistence.js';
 import { renderStart, renderGame, renderHandOver, renderGameOver } from './render.js';
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
 import { chooseAction } from '../ai/player.js';
@@ -7,7 +8,8 @@ import { discardOptions, visibleCounts, remainingCounts } from '../analysis/ukei
 import { t } from '../i18n/de.js';
 
 const root = document.getElementById('app');
-const store = createStore();
+const store = createStore({ persistence: defaultAdapter() });
+store.checkSave();
 const ui = { selected: null, legal: [], advice: null };
 let lastPhaseKey = '';
 
@@ -15,7 +17,7 @@ function render(snap) {
   const { state } = snap;
   ui.legal = state ? store.legalActions() : [];
   let html;
-  if (!state) html = renderStart({ ...snap, hasSave: store.hasSave() });
+  if (!state) html = renderStart(snap);
   else if (state.phase === 'gameOver') html = renderGameOver(snap);
   else if (state.phase === 'handOver') html = renderHandOver(snap);
   else html = renderGame(snap, ui);
@@ -82,8 +84,10 @@ root.addEventListener('click', (ev) => {
   const a = btn.dataset.action;
   try {
     switch (a) {
-      case 'new-game': store.newGame(); break;
+      case 'new-game': requestPersistentStorage(); store.newGame(); break;
       case 'resume': store.load(); break;
+      case 'export': exportSave(); break;
+      case 'import': root.querySelector('#import-file')?.click(); break;
       case 'quit': store.quit(); break;
       case 'undo': ui.selected = null; store.undo(); break;
       case 'next-hand': store.nextHand(); break;
@@ -109,7 +113,24 @@ root.addEventListener('click', (ev) => {
   }
 });
 
+function exportSave() {
+  const text = store.exportSave();
+  if (!text) return;
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mahjong-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 root.addEventListener('change', (ev) => {
+  const file = ev.target.closest('#import-file');
+  if (file && file.files?.[0]) {
+    file.files[0].text().then((text) => store.importSave(text)).catch((e) => alert(e.message));
+    return;
+  }
   const el = ev.target.closest('[data-setting]');
   if (!el) return;
   const key = el.dataset.setting;
@@ -132,6 +153,7 @@ document.addEventListener('keydown', (ev) => {
   else if (ev.key === 'h') advise();
 });
 
+window.addEventListener('pagehide', () => store.flush());
 window.__mahjong = { store, ui };
 
 // Dev-Einstieg: index.html#new=seed startet sofort ein Spiel, #auto=seed nur mit KI-Sitzen

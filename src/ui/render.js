@@ -19,6 +19,10 @@ export function renderStart(snap) {
     <div class="stack">
       <button class="btn primary" data-action="new-game">${t('newGame')}</button>
       ${snap.hasSave ? `<button class="btn" data-action="resume">${t('resume')}</button>` : ''}
+      <div class="row">
+        <button class="btn small" data-action="import">${t('importGame')}</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </div>
     </div>
     <details class="settings">
       <summary>${t('settings')}</summary>
@@ -235,6 +239,7 @@ export function renderHandOver(snap) {
     ${rows}
     <div class="stack">
       <button class="btn primary" data-action="next-hand">${t('nextHand')}</button>
+      <button class="btn" data-action="export">${t('exportGame')}</button>
       <button class="btn" data-action="quit">${t('toStart')}</button>
     </div>
   </section>`;

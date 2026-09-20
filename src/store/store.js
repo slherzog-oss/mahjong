@@ -9,8 +9,10 @@ import { createGame, applyAction, applyPayments, seatsToAct, getLegalActions } f
 import { createRuleSet } from '../core/rules.js';
 import { stepAI } from '../ai/runner.js';
 import { scoreRound } from '../scoring/millington.js';
+import { memoryAdapter } from './persistence.js';
 
-export const SAVE_KEY = 'mahjong.save.v1';
+export const SAVE_KEY = 'current';
+export const SAVE_VERSION = 1;
 export const SETTINGS_KEY = 'mahjong.settings.v1';
 
 export const DEFAULT_SETTINGS = {
@@ -24,13 +26,20 @@ export const DEFAULT_SETTINGS = {
   showChance: true,
 };
 
-export function createStore({ storage = globalThis.localStorage ?? null } = {}) {
+/**
+ * @param storage  synchroner Speicher für Einstellungen (localStorage-artig) oder null
+ * @param persistence  asynchroner Adapter aus persistence.js für Spielstände und Archiv
+ */
+export function createStore({ storage = safeLocalStorage(), persistence = memoryAdapter() } = {}) {
   const listeners = new Set();
   let settings = loadSettings();
   let state = null;
   let history = []; // Zustände vor menschlichen Entscheidungen
   let lastScore = null; // Ergebnis der letzten Hand (sheets, payments, net)
   let aiTimer = null;
+  let hasSave = false;
+  let writing = null; // laufender Schreibvorgang
+  let dirty = false;
 
   function loadSettings() {
     try {
@@ -45,11 +54,47 @@ export function createStore({ storage = globalThis.localStorage ?? null } = {}) 
     try { storage?.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignorieren */ }
   }
 
+  /** Speichert asynchron; überlappende Aufrufe werden zusammengefasst. */
   function save() {
+    dirty = true;
+    if (writing) return writing;
+    writing = (async () => {
+      while (dirty) {
+        dirty = false;
+        try {
+          if (!state) {
+            await persistence.remove('saves', SAVE_KEY);
+            hasSave = false;
+          } else {
+            await persistence.set('saves', SAVE_KEY, { version: SAVE_VERSION, savedAt: Date.now(), state, history, lastScore });
+            hasSave = true;
+          }
+        } catch (e) {
+          console.warn('Speichern fehlgeschlagen', e);
+        }
+      }
+      writing = null;
+    })();
+    return writing;
+  }
+
+  async function archiveGame() {
+    if (!state) return;
     try {
-      if (!state) storage?.removeItem(SAVE_KEY);
-      else storage?.setItem(SAVE_KEY, JSON.stringify({ state, history, lastScore }));
-    } catch { /* Speicher voll oder gesperrt */ }
+      const id = `${state.seed}-${Date.now()}`;
+      await persistence.set('archive', id, {
+        id,
+        finishedAt: Date.now(),
+        seed: state.seed,
+        ruleSet: state.ruleSet,
+        humanSeat: humanSeat(),
+        scores: state.players.map((p) => p.score),
+        hands: state.handNumber,
+        log: state.log,
+      });
+    } catch (e) {
+      console.warn('Archivieren fehlgeschlagen', e);
+    }
   }
 
   function emit() {
@@ -111,18 +156,26 @@ export function createStore({ storage = globalThis.localStorage ?? null } = {}) 
       saveSettings();
       emit();
     },
-    hasSave() {
-      try { return !!storage?.getItem(SAVE_KEY); } catch { return false; }
-    },
-    load() {
+    hasSave() { return hasSave; },
+    /** Prüft, ob ein Spielstand existiert (für den Startbildschirm). */
+    async checkSave() {
       try {
-        const raw = storage?.getItem(SAVE_KEY);
-        if (!raw) return false;
-        const data = JSON.parse(raw);
-        if (!data.state || data.state.version !== 1) return false;
+        const data = await persistence.get('saves', SAVE_KEY);
+        hasSave = !!data && migrate(data) !== null;
+      } catch {
+        hasSave = false;
+      }
+      emit();
+      return hasSave;
+    },
+    async load() {
+      try {
+        const data = migrate(await persistence.get('saves', SAVE_KEY));
+        if (!data) return false;
         state = data.state;
         history = data.history ?? [];
         lastScore = data.lastScore ?? null;
+        hasSave = true;
         emit();
         scheduleAI();
         return true;
@@ -130,6 +183,34 @@ export function createStore({ storage = globalThis.localStorage ?? null } = {}) 
         return false;
       }
     },
+    /** Spielstand als JSON-Text (für Datei-Export). */
+    exportSave() {
+      if (!state) return null;
+      return JSON.stringify({ version: SAVE_VERSION, exportedAt: Date.now(), state, history, lastScore });
+    },
+    /** JSON-Text laden (Datei-Import). */
+    importSave(text) {
+      const data = migrate(JSON.parse(text));
+      if (!data) throw new Error('Ungültiger Spielstand');
+      clearTimeout(aiTimer);
+      state = data.state;
+      history = data.history ?? [];
+      lastScore = data.lastScore ?? null;
+      save();
+      emit();
+      scheduleAI();
+      return true;
+    },
+    async listArchive() {
+      try {
+        const rows = await persistence.list('archive');
+        return rows.map((r) => r.value).sort((a, b) => b.finishedAt - a.finishedAt);
+      } catch {
+        return [];
+      }
+    },
+    /** Wartet, bis ausstehende Schreibvorgänge fertig sind (Tests, Seitenwechsel). */
+    flush() { return writing ?? Promise.resolve(); },
     newGame({ seed = Date.now(), humanSeat = 0 } = {}) {
       const ruleSet = createRuleSet({
         rounds: settings.rounds,
@@ -161,6 +242,7 @@ export function createStore({ storage = globalThis.localStorage ?? null } = {}) 
       if (s.phase === 'idle') s = applyAction(s, { type: 'startHand' });
       history = [];
       set(s);
+      if (s.phase === 'gameOver') archiveGame();
       scheduleAI();
     },
     canUndo() {
@@ -198,10 +280,23 @@ export function createStore({ storage = globalThis.localStorage ?? null } = {}) 
   };
 
   function getSnapshot() {
-    return { state, settings, lastScore, canUndo: api.canUndo(), humanSeat: humanSeat(), humanToAct: humanToAct() };
+    return { state, settings, lastScore, canUndo: api.canUndo(), humanSeat: humanSeat(), humanToAct: humanToAct(), hasSave };
   }
 
   return api;
+}
+
+function safeLocalStorage() {
+  try { return globalThis.localStorage ?? null; } catch { return null; }
+}
+
+/** Bringt ältere Spielstände auf das aktuelle Format; null = unbrauchbar. */
+function migrate(data) {
+  if (!data || typeof data !== 'object' || !data.state) return null;
+  const v = data.version ?? 1;
+  if (v > SAVE_VERSION) return null;
+  if (data.state.version !== 1) return null;
+  return data;
 }
 
 function sameAction(a, b) {
