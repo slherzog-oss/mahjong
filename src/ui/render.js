@@ -108,6 +108,11 @@ function chanceHtml(state, seat) {
   return fmtChance(u.shanten, u.total, chance);
 }
 
+function mcHtml(mc) {
+  if (!mc) return `<span class="chance mc muted" title="${t('winChanceHint')}">${t('winChance')} …</span>`;
+  return `<span class="chance mc" title="${t('winChanceHint')}"><b>${Math.round(mc.win * 100)}%</b> ${t('winChance')}</span>`;
+}
+
 function fmtChance(sh, uk, chance) {
   const label = sh < 0 ? t('complete') : sh === 0 ? t('ready') : `${t('shanten')} ${sh}`;
   const pct = sh < 0 ? 100 : Math.round(chance * 100);
@@ -175,7 +180,7 @@ export function renderGame(snap, ui) {
           <span class="wind">${t('windShort')[wind]}</span>
           <span class="name">${t('you')}${state.dealer === humanSeat ? ' · ' + t('dealer') : ''}</span>
           <span class="score">${me.score}</span>
-          ${snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat) : ''}
+          ${snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat) + mcHtml(ui.mc) : ''}
         </div>
         <div class="me-discards">${me.discards.map((id) => tileHtmlById(id, { classes: 'small' })).join('')}</div>
         <div class="me-melds">${me.melds.map(meldHtml).join('')}${me.bonus.map((id) => tileHtmlById(id, { classes: 'small bonus' })).join('')}</div>

@@ -11,6 +11,9 @@ Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 - `src/ai` — KI-Gegner (easy/medium/hard) und Zug-Schleife, siehe `docs/AI.md`
 - `src/ui`, `src/store` — Oberfläche, Store mit Undo und Autosave, siehe `docs/UI.md`
 - `manifest.webmanifest`, `sw.js`, `src/ui/pwa.js` — installierbare PWA, siehe `docs/PWA.md`
+- `src/advisor` — Berater mit Begründungen und Zielmodus
+- `src/lexicon` — Hand-Lexikon (Daten), `src/replay` — Post-Game-Analyse
+- `scripts/simulate.js` — KI-gegen-KI-Simulation zur Kalibrierung
 - `tests` — Unit-Tests (`npm test`, Node >= 20, keine Abhängigkeiten)
 
 ## Entwicklung

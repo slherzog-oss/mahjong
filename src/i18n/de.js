@@ -50,6 +50,8 @@ export const de = {
   limit: 'Limit',
   confirmDiscard: 'Abwurf bestätigen',
   chance: 'Fertigstellung',
+  winChance: 'Gewinnchance',
+  winChanceHint: 'Monte-Carlo-Simulation: Chance, die Hand vor allen Gegnern fertigzustellen (200 Läufe).',
   shanten: 'Shanten',
   ready: 'wartend',
   complete: 'fertig',

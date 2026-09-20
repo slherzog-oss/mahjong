@@ -57,3 +57,25 @@ Entscheidung der Stufe "Schwer".
 Rauchtest ohne Playwright-Paket: vorinstalliertes Chromium headless mit
 `--screenshot` gegen den Dev-Server (Hinweis: Headless erzwingt mindestens
 500 px Breite; echte Handybreite braucht Geräteemulation).
+
+## Weitere Bildschirme
+
+- **Lexikon** (`src/ui/lexicon.js`, Daten in `src/lexicon/hands.js`): Suche,
+  Filter nach Kategorie, aufklappbare Karten mit Beispielhand, Tipp, Wert und
+  Seltenheit; "Üben" startet eine Übungshand (`store.newPractice`) nahe an der
+  Form, mit passendem Spielziel.
+- **Mögliche Blätter** (im Spiel, `renderFormsPanel`): Formen mit Chance, Wert
+  und erwartetem Wert; "Ziel" setzt das Spielziel (`store.setTarget`, Aktion
+  `setTarget` im Protokoll), der Berater bewertet dann nach dieser Form und
+  markiert Steine als halten/entbehrlich; Warnung, wenn das Ziel unter 2 % fällt.
+- **Analyse** (`src/ui/analysis.js`, Logik in `src/replay/analyzer.js`): Liste
+  (aktuelle Partie, Archiv), Genauigkeit und Fehlerklassen, Chancen-Kurve als
+  SVG mit Markern, Entscheidungsliste, Detail mit gespieltem und besserem Stein.
+- **Gewinnchance**: Monte-Carlo im Worker (`src/analysis/worker.js`), Anzeige
+  neben der Fertigstellungschance, neu berechnet je Entscheidungspunkt.
+
+## Dev-Server
+
+`scripts/serve.js` liefert zusätzlich `/__delay?ms=N` (verzögerte Antwort), um
+in Headless-Tests das `load`-Ereignis zu halten, bis asynchrone Ergebnisse
+(Worker, IndexedDB) vorliegen.

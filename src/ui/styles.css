@@ -95,6 +95,8 @@ h1, h2 { margin: 0.2em 0; }
 .me { background: var(--panel); border-radius: var(--radius); padding: 8px; margin-top: auto; padding-bottom: calc(8px + var(--safe-b)); }
 .chance { margin-left: auto; color: var(--muted); }
 .chance b { color: var(--ok); }
+.chance.mc { margin-left: 8px; }
+.chance.mc b { color: var(--accent); }
 .hand { display: flex; align-items: flex-end; gap: 1px; padding: 12px 0 4px; overflow-x: auto; }
 .drawn { margin-left: 10px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 44px; }

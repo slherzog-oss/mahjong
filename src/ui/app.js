@@ -13,6 +13,35 @@ import { t } from '../i18n/de.js';
 import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, keepAwake, vibrate, isStandalone } from './pwa.js';
 
 const root = document.getElementById('app');
+
+// Worker für Monte-Carlo (Gewinnchance); fällt ohne Worker-Unterstützung still aus.
+const mc = { worker: null, key: null, result: null, pending: null, id: 0 };
+try {
+  mc.worker = new Worker(new URL('../analysis/worker.js', import.meta.url), { type: 'module' });
+  mc.worker.onmessage = (ev) => {
+    const { id, type, result } = ev.data;
+    if (type !== 'mc' || id !== mc.pending) return;
+    mc.pending = null;
+    mc.result = result;
+    render(store.getSnapshot());
+  };
+  mc.worker.onerror = (e) => { console.warn('Worker', e.message); mc.worker = null; };
+} catch (e) {
+  mc.worker = null;
+}
+
+function requestMonteCarlo(snap) {
+  const { state, humanSeat } = snap;
+  if (!mc.worker || !state || humanSeat < 0 || !snap.settings.showChance) return;
+  if (!['discard', 'draw', 'claiming'].includes(state.phase)) return;
+  const key = `${state.seed}:${state.handNumber}:${state.log.length}`;
+  if (mc.key === key) return;
+  mc.key = key;
+  mc.result = null;
+  mc.pending = ++mc.id;
+  const { rng, ...plain } = state;
+  mc.worker.postMessage({ id: mc.pending, type: 'mc', state: plain, seat: humanSeat, runs: 200 });
+}
 const store = createStore({ persistence: defaultAdapter() });
 store.checkSave();
 const ui = { selected: null, legal: [], advice: null, screen: null, lexicon: { query: '', category: 'all', open: null }, formsOpen: false, showKinds: null, practice: null, analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null } };
@@ -30,7 +59,9 @@ function render(snap) {
   else if (state.phase === 'gameOver') html = renderGameOver(snap);
   else if (state.phase === 'handOver') html = renderHandOver(snap);
   else html = renderGame(snap, ui);
+  ui.mc = mc.key && state && mc.key === `${state.seed}:${state.handNumber}:${state.log.length}` ? mc.result : null;
   root.innerHTML = renderBanner(ui.pwa) + html;
+  requestMonteCarlo(snap);
   const inHand = !!state && !['handOver', 'gameOver', 'idle'].includes(state.phase);
   pwa.wantAwake = inHand;
   keepAwake(inHand);

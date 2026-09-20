@@ -40,7 +40,40 @@ Steinen interpoliert; je eigenem Zug gilt Trefferchance `u_j / R_t`, wobei die
 unbekannten Steine pro Runde um 4 abnehmen. Näherung für die Anzeige nach jedem
 Zug; die Monte-Carlo-Rechnung kommt in Stufe 3.
 
-## Noch offen
+## Gefahr (`danger.js`)
 
-Wertbewertung (erwartete Punkte je Abwurf), Gefahrenbewertung, Distanzen zu
-weiteren Zielformen (Flush, All Pungs, Nine Gates), Gewinnchance gegen Gegner.
+`opponentTempo(state, seat)` schätzt aus offenen Sätzen, Spielfortschritt und
+späten Mittelstein-Abwürfen, wie nahe ein Gegner am Gewinn ist.
+`dangerOf(state, seat, kind, remaining)` liefert 0…1 aus Restkopien, Steinart
+(Honours/Endsteine sicherer), eigenen Abwürfen des Gegners (sicherer gegen ihn)
+und Farbverdacht bei offenen Sätzen.
+
+## Abwurfbewertung (`evaluate.js`)
+
+`evaluateDiscards(state, seat, weights)` kombiniert je Kandidat
+Fertigstellungschance (relativ zum besten), Wertpotenzial (`valuePotential`:
+Drachen-/Windpaare, Farbtendenz) und Gefahr (gewichtet mit dem Fortschritt) zu
+einem Score. Berater und KI-Stufe Schwer nutzen dieselbe Funktion.
+
+## Zielformen (`forms.js`)
+
+`formDistance(form, kinds, melds, rs)` liefert Shanten-artige Distanzen für 16
+Formen (Standard, verdeckt, nur Pungs, Half/Full Flush, Endsteine/Honours,
+Drachen, Winde, Verborgener Schatz, verdeckte reine Farbe, nur Honours, nur
+Endsteine, Kaiserliche Jade, Neun Tore, Dreizehn Waisen, Sieben Paare);
+`Infinity` = unmöglich (z. B. offene Sätze bei verdeckten Formen).
+`analyzeForms(state, seat)` bewertet alle Formen mit Chance, Wert und
+erwartetem Wert (Panel "Mögliche Blätter"); `formDiscardOptions` und
+`formKeepKinds` treiben den Berater im Zielmodus.
+
+## Monte-Carlo (`montecarlo.js`, `worker.js`)
+
+`simulate(state, seat, { runs })`: zufällige Restwände aus den unbekannten
+Steinen; eigene Züge greedy (nützliche oder anschlussfähige Steine aufnehmen,
+besten Abwurf wählen); Pung-Rufe und Chow-Rufe vom linken Nachbarn bei
+Shanten-Gewinn; Gegner als Hazard-Modell aus `opponentTempo`. Ergebnis:
+`complete` (fertig vor Wandende), `win` (fertig vor allen Gegnern),
+mittlere Zugzahl, Standardfehler. 200 Läufe ≈ 0,7–1 s; läuft im Web Worker
+(`worker.js`, Nachricht `mc`) und erscheint als "Gewinnchance" über der Hand.
+Kalibrierung: frische Hand ≈ 80 % fertig, ≈ 30 % Gewinn (entspricht den
+KI-gegen-KI-Simulationen mit ~30 % Gewinnrate je Sitz).
