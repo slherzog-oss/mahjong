@@ -77,7 +77,10 @@ function render(snap) {
   ui.mc = mc.key && state && mc.key === `${state.seed}:${state.handNumber}:${state.log.length}` ? mc.result : null;
   if (!Number.isInteger(ui.tutorial) && !snap.settings.tutorialDone && !state && !ui.screen) ui.tutorial = 0;
   const tutorialOpen = Number.isInteger(ui.tutorial) && ui.tutorial >= 0;
+  // Aufgeklappte Bereiche (Einstellungen, Regeln) über den Neuaufbau hinweg offen halten
+  const openDetails = [...root.querySelectorAll('details.settings')].map((d) => d.open);
   root.innerHTML = renderBanner(ui.pwa) + html + (tutorialOpen ? renderTutorial(ui.tutorial, snap.settings.rules.variant ?? 'classical') : '');
+  root.querySelectorAll('details.settings').forEach((d, i) => { if (openDetails[i]) d.open = true; });
   requestMonteCarlo(snap);
   // Lernmodus: Empfehlung automatisch nach jedem eigenen Zug
   if (snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {

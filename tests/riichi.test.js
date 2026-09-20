@@ -408,3 +408,16 @@ test('Riichi-Engine: zufällige KI-Partien halten die Invarianten', () => {
   }
   assert.ok(wins > 0);
 });
+
+test('Riichi mit 0 Startpunkten: Riichi erlaubt, kein Bankrott', () => {
+  const zero = createRuleSet({ variant: 'riichi', startScore: 0 });
+  let s = rigGame({ hands: ['234b 567c 678k 34k 88c 9k', null, null, null], ruleSet: zero });
+  s = structuredClone(s);
+  s.players.forEach((p) => { p.score = 0; });
+  assert.ok(getLegalActions(s, 0).some((a) => a.type === 'riichi'));
+  s.players[1].score = -3000;
+  s.phase = 'handOver';
+  s.result = { type: 'draw', tenpai: [false, false, false, false] };
+  s = applyAction(s, { type: 'endHand' });
+  assert.equal(s.phase, 'idle');
+});

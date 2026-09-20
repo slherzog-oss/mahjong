@@ -72,7 +72,7 @@ function rulesPanel(s) {
   const variant = s.rules.variant ?? 'classical';
   const fields = VARIANT_FIELDS[variant] ?? VARIANT_FIELDS.classical;
   const label = (key) => (t('rule.' + key) !== 'rule.' + key ? t('rule.' + key) : t(key));
-  const startScores = variant === 'riichi' ? [25000, 30000] : variant === 'hongkong' ? [500, 1000, 2000] : [1000, 2000, 5000];
+  const startScores = variant === 'riichi' ? [0, 25000, 30000] : variant === 'hongkong' ? [0, 500, 1000, 2000] : [0, 1000, 2000, 5000];
   const selects = { limit: [500, 1000], deadWallSize: [14, 16], maxChows: [1, 2, 4], startScore: startScores, minFan: [0, 1, 3], hkPayment: ['half', 'full'] };
   const optLabel = (key, v) => (key === 'hkPayment' ? t('hkPayments.' + v) : v);
   const row = (key) => {
