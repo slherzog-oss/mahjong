@@ -1,0 +1,5 @@
+Steingrafiken aus FluffyStuff/riichi-mahjong-tiles
+https://github.com/FluffyStuff/riichi-mahjong-tiles
+Lizenz: CC0 1.0 (Public Domain), https://creativecommons.org/publicdomain/zero/1.0/
+Dateien umbenannt auf die Kennungen dieser App (1b..9b Bambus, 1c..9c Kreise,
+1k..9k Zeichen, E S W N, Rd Gd Wd) und um Inkscape-Metadaten bereinigt.
