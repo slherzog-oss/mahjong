@@ -16,10 +16,10 @@ function rigDiscard(hand) {
   return rigGame({ hands: [hand, null, null, null] });
 }
 
-test('Nani Kiru?: erwartete Abwürfe (medium)', () => {
+test('Nani Kiru?: erwartete Abwürfe (hard, deterministisch)', () => {
   for (const f of fixtures) {
     const s = rigDiscard(f.hand);
-    const a = chooseAction(s, 0, { difficulty: 'medium', rng: createRngState('nk') });
+    const a = chooseAction(s, 0, { difficulty: 'hard', rng: createRngState('nk') });
     assert.equal(a.type, 'discard', f.name);
     const got = formatKinds([kindOf(a.tile)]);
     const expected = f.discardOneOf ?? [f.discard];

@@ -25,8 +25,8 @@ export const DIFFICULTIES = ['easy', 'medium', 'hard'];
  * 1 = immer bester Zug, 0 = breite Streuung über die besten `topN` Kandidaten.
  */
 export const SKILL = {
-  easy: { skill: 0.3, topN: 5 },
-  medium: { skill: 0.55, topN: 3 },
+  easy: { skill: 0.1, topN: 6 },
+  medium: { skill: 0.35, topN: 4 },
   hard: { skill: 1.0, topN: 1 },
 };
 
@@ -52,9 +52,9 @@ export const AI_PARAMS = {
   medium: {
     chowMaxShanten: 3, // Chow nur, wenn Hand höchstens so weit entfernt ist
     keepConcealedUntil: 2, // ohne offene Sätze: bei Shanten ≤ x nicht für Chow öffnen
-    dangerWeight: 0.6, // Gewicht der Gefahr gegen Ukeire (spätes Spiel)
+    dangerWeight: 0.4, // Gewicht der Gefahr gegen Ukeire (spätes Spiel)
     ukeireTolerance: 0.75, // Kandidaten mit mind. x·bestes Ukeire gelten als gleichwertig
-    mistakeRate: 0.05, // Anteil bewusst zweitbester Abwürfe
+    mistakeRate: 0.1, // Anteil bewusst zweitbester Abwürfe
   },
   hard: {
     chowMaxShanten: 3,
