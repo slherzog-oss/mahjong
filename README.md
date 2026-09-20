@@ -7,6 +7,7 @@ Reines HTML/CSS/JavaScript, kein Build-Schritt, offline spielbar.
 - `RESEARCH.md` — Recherche zu bestehenden Open-Source-Projekten
 - `src/core` — Regel-Kern (Steine, Wand, Zustand, Aktionen, Hand-Validierung), siehe `docs/ENGINE.md`
 - `src/scoring` — Scoring nach Millington mit Zahlungsmatrix, siehe `docs/SCORING.md`
+- `src/analysis` — Shanten, Ukeire, Fertigstellungschance, siehe `docs/ANALYSIS.md`
 - `tests` — Unit-Tests (`npm test`, Node >= 20, keine Abhängigkeiten)
 
 ## Entwicklung
