@@ -34,6 +34,11 @@ handOver → idle | gameOver`.
 | `mahjong` | discard (Selbstzug) / claiming | `seat` |
 | `pass`, `pung`, `kong` (open), `chow` | claiming | `seat`, `kinds` (chow: die zwei eigenen Arten) |
 | `endHand` | handOver | – |
+| `setTarget` | jede außer gameOver | `seat`, `form` (Handform-ID oder null); nur Protokoll |
+
+Außerdem: `rigDeal(state, seat, kinds)` (Übungsverteilung direkt nach `startHand`,
+wird als Aktion `rigDeal` protokolliert) und `replay({ seed, ruleSet, humanSeat,
+actions })`, das ein Spiel aus `state.actions` exakt nachspielt.
 
 In `claiming` melden alle drei Nicht-Abwerfer; sobald drei Meldungen vorliegen,
 wird aufgelöst: Mahjong (nächster in Spielreihenfolge) > Pung/Kong > Chow > alle

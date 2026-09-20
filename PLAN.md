@@ -4,6 +4,8 @@
 ("The Complete Book of Mah-Jongg"). Japanese Riichi und Hong Kong folgen später als
 austauschbare Regelmodule.
 
+**Umsetzungsstand:** siehe `docs/STATUS.md` (Stufen 1 bis 4 umgesetzt, Stufe 5 offen).
+
 **Technik:** Reines HTML/CSS/JavaScript (ES-Module), responsiv für Handy und Desktop,
 von Anfang an als **Progressive Web App (PWA)** angelegt: installierbar auf dem
 Homescreen, offline voll spielbar, alle Daten lokal. Keine Frameworks für die Kernlogik.
