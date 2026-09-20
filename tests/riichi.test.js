@@ -9,7 +9,7 @@ import { scoreRound } from '../src/scoring/index.js';
 import { runUntilHuman } from '../src/ai/runner.js';
 import { rigGame, tileOf, allPass } from './helpers.js';
 
-const rules = createRuleSet({ variant: 'riichi' });
+const rules = createRuleSet({ variant: 'riichi', startScore: 25000 }); // klassische Punktebasis für die Regeltests
 const meld = (type, n, open = true) => ({ type, kinds: parseKinds(n), open });
 const ids = (sheet) => sheet.lines.map((l) => l.id);
 const han = (sheet, id) => sheet.lines.find((l) => l.id === id)?.value;
@@ -25,7 +25,7 @@ function score(notation, extra = {}) {
 
 test('Riichi: Regelwerk und Tabellen', () => {
   assert.equal(rules.variant, 'riichi');
-  assert.equal(rules.startScore, 25000);
+  assert.equal(createRuleSet({ variant: 'riichi' }).startScore, 0);
   assert.equal(rules.rounds, 2);
   assert.equal(rules.sevenPairs, true);
   for (const [id, y] of Object.entries(RIICHI_YAKU)) assert.ok(y.de && y.en, id);
@@ -374,7 +374,7 @@ test('Riichi-Engine: Bust beendet das Spiel', () => {
 test('Riichi-Engine: zufällige KI-Partien halten die Invarianten', () => {
   let wins = 0, riichis = 0;
   for (let g = 0; g < 8; g++) {
-    let s = createGame({ seed: `ri-${g}`, humanSeat: -1, ruleSet: createRuleSet({ variant: 'riichi', rounds: 1 }) });
+    let s = createGame({ seed: `ri-${g}`, humanSeat: -1, ruleSet: createRuleSet({ variant: 'riichi', rounds: 1, startScore: 25000 }) });
     s = applyAction(s, { type: 'startHand' });
     let hands = 0;
     while (s.phase !== 'gameOver' && hands < 6) {
@@ -407,4 +407,17 @@ test('Riichi-Engine: zufällige KI-Partien halten die Invarianten', () => {
     assert.equal(r.riichiSticks, s.riichiSticks);
   }
   assert.ok(wins > 0);
+});
+
+test('Riichi mit 0 Startpunkten: Riichi erlaubt, kein Bankrott', () => {
+  const zero = createRuleSet({ variant: 'riichi', startScore: 0 });
+  let s = rigGame({ hands: ['234b 567c 678k 34k 88c 9k', null, null, null], ruleSet: zero });
+  s = structuredClone(s);
+  s.players.forEach((p) => { p.score = 0; });
+  assert.ok(getLegalActions(s, 0).some((a) => a.type === 'riichi'));
+  s.players[1].score = -3000;
+  s.phase = 'handOver';
+  s.result = { type: 'draw', tenpai: [false, false, false, false] };
+  s = applyAction(s, { type: 'endHand' });
+  assert.equal(s.phase, 'idle');
 });

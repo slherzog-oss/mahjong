@@ -8,7 +8,7 @@ import { analyzeGame } from '../replay/analyzer.js';
 import { lexiconById } from '../lexicon/hands.js';
 import { parseKinds } from '../core/tiles.js';
 import { kindOf, KIND_NAMES } from '../core/tiles.js';
-import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints } from '../advisor/index.js';
+import { adviseDiscard, adviseClaim, explainDiscard, explainClaim, explainHints, explainWhy } from '../advisor/index.js';
 import { t, setLanguage, setOverrides } from '../i18n/index.js';
 import { renderTutorial } from './tutorial.js';
 import { setRedFives } from './tiles.js';
@@ -77,10 +77,13 @@ function render(snap) {
   ui.mc = mc.key && state && mc.key === `${state.seed}:${state.handNumber}:${state.log.length}` ? mc.result : null;
   if (!Number.isInteger(ui.tutorial) && !snap.settings.tutorialDone && !state && !ui.screen) ui.tutorial = 0;
   const tutorialOpen = Number.isInteger(ui.tutorial) && ui.tutorial >= 0;
+  // Aufgeklappte Bereiche (Einstellungen, Regeln) über den Neuaufbau hinweg offen halten
+  const openDetails = [...root.querySelectorAll('details.settings')].map((d) => d.open);
   root.innerHTML = renderBanner(ui.pwa) + html + (tutorialOpen ? renderTutorial(ui.tutorial, snap.settings.rules.variant ?? 'classical') : '');
+  root.querySelectorAll('details.settings').forEach((d, i) => { if (openDetails[i]) d.open = true; });
   requestMonteCarlo(snap);
   // Lernmodus: Empfehlung automatisch nach jedem eigenen Zug
-  if (snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {
+  if (snap.settings.assist && snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {
     ui.learnKey = stateKey(state);
     ui.formsOpen = true;
     advise();
@@ -145,10 +148,11 @@ function advise() {
       hints: explainHints(adv.hints),
       alternatives: adv.alternatives,
       best: adv.best,
+      why: explainWhy(adv, 'discard'),
     };
   } else if (state.phase === 'claiming' || legal.some((a) => a.type === 'mahjong')) {
     const adv = state.phase === 'claiming' ? adviseClaim(state, humanSeat) : { action: { type: 'mahjong' }, reason: { key: 'mahjong' } };
-    ui.advice = { lines: explainClaim(adv), hints: [], action: adv.action.type };
+    ui.advice = { lines: explainClaim(adv), hints: [], action: adv.action.type, why: explainWhy(adv, 'claim') };
   }
   render(store.getSnapshot());
 }
@@ -212,6 +216,8 @@ root.addEventListener('click', (ev) => {
       }
       case 'riichi-cancel': ui.riichiMode = false; render(snap); break;
       case 'advise': advise(); break;
+      case 'advice-why': if (ui.advice) { ui.advice.showWhy = !ui.advice.showWhy; render(snap); } break;
+      case 'toggle-assist': ui.advice = null; store.updateSettings({ assist: !store.settings.assist }); break;
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
       case 'lexicon': ui.screen = 'lexicon'; ui.lexicon.variant = snap.state?.ruleSet.variant ?? store.settings.rules.variant ?? 'classical'; render(snap); break;

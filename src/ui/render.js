@@ -72,7 +72,7 @@ function rulesPanel(s) {
   const variant = s.rules.variant ?? 'classical';
   const fields = VARIANT_FIELDS[variant] ?? VARIANT_FIELDS.classical;
   const label = (key) => (t('rule.' + key) !== 'rule.' + key ? t('rule.' + key) : t(key));
-  const startScores = variant === 'riichi' ? [25000, 30000] : variant === 'hongkong' ? [500, 1000, 2000] : [1000, 2000, 5000];
+  const startScores = variant === 'riichi' ? [0, 25000, 30000] : variant === 'hongkong' ? [0, 500, 1000, 2000] : [0, 1000, 2000, 5000];
   const selects = { limit: [500, 1000], deadWallSize: [14, 16], maxChows: [1, 2, 4], startScore: startScores, minFan: [0, 1, 3], hkPayment: ['half', 'full'] };
   const optLabel = (key, v) => (key === 'hkPayment' ? t('hkPayments.' + v) : v);
   const row = (key) => {
@@ -199,7 +199,7 @@ export function renderGame(snap, ui) {
     return tileHtmlById(id, { classes: cls });
   };
   let formsHtml = '';
-  if (snap.settings.showForms && me.hand.length > 0 && state.phase !== 'handOver') {
+  if (snap.settings.assist && snap.settings.showForms && me.hand.length > 0 && state.phase !== 'handOver') {
     try {
       const forms = cachedForms(state, humanSeat);
       formsHtml = renderFormsPanel(forms, { target, expanded: ui.formsOpen, showKinds: ui.showKinds, variant: rs.variant });
@@ -220,6 +220,7 @@ export function renderGame(snap, ui) {
       <button class="btn small" data-action="quit">${t('back')}</button>
       <span class="info">${t('round')} ${t('windShort')[state.roundWind]} · ${t('hand')} ${state.handNumber} · ${t('wall')} ${state.wall.living.length}${doraHtml}</span>
       <span class="topbar-right">
+        <button class="btn small${snap.settings.assist ? '' : ' assist-off'}" data-action="toggle-assist" title="${t('assist')}">${snap.settings.assist ? t('assistOn') : t('assistOff')}</button>
         <button class="btn small" data-action="lexicon" title="${t('lexicon')}" aria-label="${t('lexicon')}">?</button>
         <button class="btn small" data-action="undo" ${snap.canUndo ? '' : 'disabled'}>${t('undo')}</button>
       </span>
@@ -237,7 +238,7 @@ export function renderGame(snap, ui) {
           ${me.riichi ? `<span class="riichi-badge">${t('riichi')}</span>` : ''}
           ${furiten ? `<span class="furiten-badge" title="${t('furitenHint')}">${t('furiten')}</span>` : ''}
           <span class="score">${me.score}</span>
-          ${snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat) + mcHtml(ui.mc) : ''}
+          ${snap.settings.assist && snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat) + mcHtml(ui.mc) : ''}
         </div>
         <div class="me-discards">${me.discards.map((id) => tileHtmlById(id, { classes: 'small' + (me.riichi && id === me.riichi.tile ? ' riichi-tile' : '') })).join('')}</div>
         <div class="me-melds">${me.melds.map(meldHtml).join('')}${me.bonus.map((id) => tileHtmlById(id, { classes: 'small bonus' })).join('')}</div>
@@ -270,6 +271,8 @@ function adviceHtml(adv) {
     ${(adv.lines ?? []).map((l) => `<p>${esc(l)}</p>`).join('')}
     ${adv.alternatives?.length ? `<p class="alts"><b>${t('alternatives')}:</b> ${adv.alternatives.map(stat).join(' &nbsp; ')}</p>` : ''}
     ${(adv.hints ?? []).map((h) => `<p class="hint">${esc(h)}</p>`).join('')}
+    ${adv.why?.length ? `<p><button class="btn tiny" data-action="advice-why">${adv.showWhy ? t('whyLess') : t('why')}</button></p>` : ''}
+    ${adv.showWhy ? adv.why.map((l) => `<p class="why">${esc(l)}</p>`).join('') : ''}
   </div>`;
 }
 
@@ -279,7 +282,10 @@ function statusLine(state, snap, legal) {
   if (snap.humanToAct) {
     if (state.phase === 'draw') return t('yourDraw');
     if (state.phase === 'discard') return t('yourTurn');
-    if (state.phase === 'claiming') return t('claiming');
+    if (state.phase === 'claiming') {
+      const src = state.pendingKong ? state.pendingKong.seat : state.lastDiscard.seat;
+      return t('claimingHint', { name: playerName(state, src, snap.humanSeat), tile: KIND_NAMES[state.pendingKong ? state.pendingKong.kind : kindOf(state.lastDiscard.tile)] });
+    }
   }
   const names = cur.map((s) => playerName(state, s, snap.humanSeat)).join(', ');
   return `${t('waitFor')} ${esc(names)} …`;
@@ -313,9 +319,9 @@ function actionsHtml(state, snap, legal, ui) {
       else out.push(btn(t('riichi'), 'data-action="riichi"', 'riichi'));
     }
     if (snap.settings.confirmDiscard && !ui.riichiMode) out.push(btn(t('discard'), 'data-action="discard-selected"', ui.selected !== null ? 'primary' : ''));
-    out.push(btn(t('advisor'), 'data-action="advise"'));
+    if (snap.settings.assist) out.push(btn(t('advisor'), 'data-action="advise"'));
   }
-  if (state.phase === 'claiming') out.push(btn(t('advisor'), 'data-action="advise"'));
+  if (state.phase === 'claiming' && snap.settings.assist) out.push(btn(t('advisor'), 'data-action="advise"'));
   return out.join('');
 }
 

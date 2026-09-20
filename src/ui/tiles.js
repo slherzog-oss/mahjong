@@ -1,5 +1,6 @@
 // Steingrafiken: Kennung → Bildpfad. Blumen/Jahreszeiten als Blank mit Text.
-import { KIND_NAMES, kindOf, isBonus } from '../core/tiles.js';
+import { KIND_NAMES, kindOf, isBonus, isSuited, rankOf } from '../core/tiles.js';
+import { t } from '../i18n/index.js';
 
 const BASE = new URL('./tiles/', import.meta.url).pathname;
 
@@ -17,15 +18,24 @@ export function setRedFives(on) { redFivesOn = !!on; }
 export function isRedFive(id) { return redFivesOn && RED_FIVE_IDS.has(id); }
 
 /** HTML eines Steins (Vorderseite). id optional für Klick-Ziel. */
+/** Arabische Ziffer für Farbsteine (Lesehilfe auf Bambus, Kreisen und Zeichen). */
+function rankBadge(kind) {
+  return isSuited(kind) ? `<span class="tile-rank">${rankOf(kind)}</span>` : '';
+}
+
 export function tileHtml(kind, { id = null, classes = '', label = null } = {}) {
   const name = KIND_NAMES[kind];
-  const bonus = isBonus(kind) ? `<span class="tile-bonus">${name}</span>` : '';
   const attrs = id !== null ? ` data-id="${id}" data-kind="${kind}"` : ` data-kind="${kind}"`;
-  return `<span class="tile ${classes}"${attrs} title="${label ?? name}"><img src="${tileSrc(kind)}" alt="${name}" draggable="false">${bonus}</span>`;
+  if (isBonus(kind)) {
+    // Bonussteine: Steinfläche mit Kennung (keine Grafik im Steinset)
+    const short = t('bonusShort')[name[0]] ?? name[0];
+    return `<span class="tile tile-plain ${classes}"${attrs} title="${label ?? name}"><span class="tile-bonus">${short}${name[1]}</span></span>`;
+  }
+  return `<span class="tile ${classes}"${attrs} title="${label ?? name}"><img src="${tileSrc(kind)}" alt="${name}" draggable="false">${rankBadge(kind)}</span>`;
 }
 
 export function backHtml(classes = '') {
-  return `<span class="tile tile-back ${classes}"><img src="${BACK_SRC}" alt="" draggable="false"></span>`;
+  return `<span class="tile tile-back ${classes}" aria-hidden="true"></span>`;
 }
 
 export function tileHtmlById(id, opts = {}) {

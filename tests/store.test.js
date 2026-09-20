@@ -93,7 +93,7 @@ test('Beendete Partie landet im Archiv', async () => {
   assert.equal(archive.length, 1);
   assert.equal(archive[0].seed, 'store-6');
   assert.ok(archive[0].log.length > 0);
-  assert.equal(archive[0].scores.reduce((a, b) => a + b, 0), 4 * 2000);
+  assert.equal(archive[0].scores.reduce((a, b) => a + b, 0), 4 * store.settings.rules.startScore);
 });
 
 test('Handende wird abgerechnet, nextHand startet die nächste Hand', () => {

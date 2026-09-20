@@ -11,7 +11,7 @@ export const CHINESE_CLASSICAL = Object.freeze({
   deadWallSize: 14, // Kong-Box
   refillDeadWall: true, // tote Wand aus der lebenden Wand nachfüllen
   rounds: 4, // Anzahl Rundenwinde (1 = Kurzspiel)
-  startScore: 2000,
+  startScore: 0, // Plus/Minus-Abrechnung; Option 1000/2000/5000
   dealerKeepsOnWin: true,
   dealerKeepsOnDraw: true,
   maxChows: 4, // BMJA: 1
@@ -56,7 +56,7 @@ export const HONG_KONG = Object.freeze({
   losersPayEachOther: false,
   discarderPaysAll: false,
   loserHandDoubles: false,
-  startScore: 500,
+  startScore: 0,
 });
 
 export const RIICHI = Object.freeze({
@@ -68,7 +68,7 @@ export const RIICHI = Object.freeze({
   deadWallSize: 14,
   refillDeadWall: true,
   rounds: 2, // Hanchan: Ost- und Südrunde
-  startScore: 25000,
+  startScore: 0, // Plus/Minus; klassisch 25000 als Option
   dealerKeepsOnWin: true,
   dealerKeepsOnDraw: true, // nur wenn Ost wartend ist (Regelkern)
   maxChows: 4,

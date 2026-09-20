@@ -255,7 +255,7 @@ export function getLegalActions(state, seat) {
         out.push({ type: 'discard', seat, tile: id });
       }
       // Riichi-Ansage: verdeckte Hand, mindestens 1000 Punkte, mindestens 4 Wandsteine, Abwurf lässt die Hand wartend
-      if (riichi && drawn !== null && p.melds.every((m) => !m.open) && p.score >= 1000 && state.wall.living.length >= 4) {
+      if (riichi && drawn !== null && p.melds.every((m) => !m.open) && (p.score >= 1000 || state.ruleSet.startScore === 0) && state.wall.living.length >= 4) {
         const kinds = handKinds(p);
         const mc = p.melds.length;
         // Schnelle Vorprüfung über Shanten (gecachte Farbtabellen), Tenpai genau dann bei Shanten 0
@@ -796,7 +796,8 @@ function endHand(state) {
     if (state.dealer === 0) state.roundWind++;
   }
   state.result = null;
-  const bust = isRiichiVariant(state) && rs.bustEnds && state.players.some((p) => p.score < 0);
+  // Bei 0 Startpunkten wird mit Plus/Minus gespielt: kein Bankrott
+  const bust = isRiichiVariant(state) && rs.bustEnds && rs.startScore > 0 && state.players.some((p) => p.score < 0);
   state.phase = state.roundWind >= rs.rounds || bust ? 'gameOver' : 'idle';
   if (state.phase === 'gameOver') {
     if (state.riichiSticks > 0) {

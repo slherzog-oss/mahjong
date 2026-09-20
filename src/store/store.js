@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS = {
   playerNames: ['Mei', 'Jun', 'Lan'],
   confirmDiscard: true,
   aiDelayMs: 450,
+  assist: true, // Hilfen im Spiel (Chance, Blätter, Empfehlung) ein/aus
   showChance: true,
   showForms: true,
   animations: true,

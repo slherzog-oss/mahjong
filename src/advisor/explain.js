@@ -71,3 +71,25 @@ export function explainHints(hints) {
     }
   }).filter(Boolean);
 }
+
+/** Ausführliche Begründung ("Warum?"): Begriffe und alle Kandidaten mit Zahlen. */
+export function explainWhy(advice, kind) {
+  const out = [];
+  if (kind === 'claim') {
+    out.push(t('adv.why.claim'));
+    const r = advice.reason ?? {};
+    if (r.key === 'gain') out.push(t('adv.why.gain', { before: r.before, after: r.after }));
+    if (r.key === 'keepConcealed') out.push(t('adv.why.concealed'));
+    if (r.key === 'noGain') out.push(t('adv.why.noGain', { before: advice.before, after: advice.after }));
+    if (r.key === 'noYaku') out.push(t('adv.noYaku'));
+    if (r.key === 'lowFan') out.push(t('adv.lowFan'));
+    return out;
+  }
+  out.push(t('adv.why.discard'));
+  out.push(t('adv.why.terms'));
+  const rows = (advice.options ?? []).slice(0, 5).map((o) => t('adv.why.row', {
+    tile: KIND_NAMES[o.kind], shanten: o.shanten, ukeire: o.total, pct: Math.round((o.chance ?? 0) * 100), danger: Math.round((o.danger ?? 0) * 100),
+  }));
+  out.push(...rows);
+  return out;
+}
