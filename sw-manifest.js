@@ -1,6 +1,6 @@
 // Generiert von scripts/build-sw-manifest.js – nicht von Hand bearbeiten.
 self.__PRECACHE = {
-  "version": "a7cd224fc574",
+  "version": "5ababf1e2398",
   "files": [
     "icons/apple-touch-icon.png",
     "icons/icon-192.png",
@@ -49,11 +49,16 @@ self.__PRECACHE = {
     "src/store/store.js",
     "src/ui/analysis.js",
     "src/ui/app.js",
+    "src/ui/calculator.js",
+    "src/ui/guide.js",
     "src/ui/lexicon.js",
+    "src/ui/overlay.js",
     "src/ui/pwa.js",
     "src/ui/render.js",
+    "src/ui/settings.js",
     "src/ui/sound.js",
     "src/ui/styles.css",
+    "src/ui/tabbar.js",
     "src/ui/tiles.js",
     "src/ui/tiles/1b.svg",
     "src/ui/tiles/1c.svg",

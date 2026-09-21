@@ -1,14 +1,14 @@
 {
-  "name": "Mahjong – Chinese Classical",
+  "name": "Mahjong",
   "short_name": "Mahjong",
-  "description": "Chinese Classical Mahjong nach Millington gegen drei KI-Gegner, mit Live-Berater, Gewinnchancen, Lexikon und Analyse. Offline spielbar.",
-  "lang": "de",
+  "description": "Chinese Classical, Hong Kong Old Style and Riichi Mahjong against AI opponents, with a live coach, win chances, hand guide and post-game analysis. Playable offline.",
+  "lang": "en",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#1d3b2a",
-  "theme_color": "#1d3b2a",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "categories": ["games", "entertainment", "education"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
@@ -17,8 +17,8 @@
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
-    { "name": "Neues Spiel", "url": "./?action=new", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Fortsetzen", "url": "./?action=resume", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Lexikon", "url": "./?action=lexicon", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "New game", "url": "./?action=new", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Resume", "url": "./?action=resume", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Guide", "url": "./?action=guide", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }
