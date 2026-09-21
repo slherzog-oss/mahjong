@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS = {
   learnMode: false,
   tutorialDone: false,
   // Darstellung
-  theme: 'system', // 'system' | 'light' | 'dark'
+  theme: 'dark', // 'system' | 'light' | 'dark' (reference app renders dark by default)
   matColor: 'green', // 'green' | 'red' | 'blue' | 'black' | 'purple' | 'brown'
   tileColor: 'yellow', // 'yellow' | 'blue' | 'gray' | 'green' | 'pink' | 'purple'
   tileShape: 'round', // 'round' | 'sharp'
