@@ -58,9 +58,12 @@ test('i18n: Sprachwechsel, Fallback, Überschreibungen, gleiche Schlüssel', () 
   setOverrides({ playerNames: ['You', 'A', 'B', 'C'] });
   assert.deepEqual(t('playerNames'), ['You', 'A', 'B', 'C']);
   setOverrides({});
-  setLanguage('xx');
+  setLanguage('de');
   assert.equal(getLanguage(), 'de');
   assert.equal(t('newGame'), 'Neues Spiel');
+  setLanguage('xx'); // unbekannter Code fällt auf Englisch zurück (Standardsprache)
+  assert.equal(getLanguage(), 'en');
+  assert.equal(t('newGame'), 'New game');
   assert.equal(t('missing.key'), 'missing.key');
   assert.equal(t('adv.best', { tile: '1b', shanten: 1, ukeire: 8, pct: 40 }).includes('1b'), true);
   const keys = (o, pre = '') => Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object' && !Array.isArray(v) ? keys(v, `${pre}${k}.`) : [`${pre}${k}`]));

@@ -9,7 +9,7 @@ export const LANGUAGES = [
   { id: 'en', name: 'English' },
 ];
 
-let current = 'de';
+let current = 'en';
 let overrides = {};
 
 /** Laufzeit-Überschreibungen (z. B. Spielernamen aus den Einstellungen). */
@@ -22,7 +22,7 @@ export function getLanguage() {
 }
 
 export function setLanguage(lang) {
-  current = DICTS[lang] ? lang : 'de';
+  current = DICTS[lang] ? lang : 'en';
   try { document.documentElement.lang = current; } catch { /* kein DOM */ }
   return current;
 }
@@ -34,7 +34,7 @@ function lookup(dict, key) {
 export function t(key, vars = {}) {
   let s = lookup(overrides, key);
   if (s === undefined) s = lookup(DICTS[current], key);
-  if (s === undefined) s = lookup(de, key);
+  if (s === undefined) s = lookup(en, key);
   if (s === undefined) return key;
   if (typeof s !== 'string') return s;
   for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));

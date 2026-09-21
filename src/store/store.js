@@ -19,29 +19,46 @@ export const SAVE_VERSION = 1;
 export const SETTINGS_KEY = 'mahjong.settings.v1';
 
 export const DEFAULT_SETTINGS = {
-  language: 'de',
+  language: 'en',
   difficulty: 'medium',
   rounds: 1,
   preset: 'millington',
   rules: { ...RULE_PRESETS.millington },
   playerNames: ['Mei', 'Jun', 'Lan'],
-  confirmDiscard: true,
-  aiDelayMs: 450,
-  assist: true, // Hilfen im Spiel (Chance, Blätter, Empfehlung) ein/aus
+  aiDelayMs: 450, // über "Game Speed" in den Einstellungen (Extra Slow..Fastest)
+  skipDealAnimation: true, // Verteil-Animation zu Rundenbeginn überspringen
+  highlightMatchingTiles: true, // beim Antippen eines Handsteins alle gleichartigen hervorheben
+  disablePointTracking: false, // Punktestände nicht fortschreiben (Übungsmodus)
+  assist: true, // Coach im Spiel (Chance, Blätter, Empfehlung) ein/aus
   showChance: true,
   showForms: true,
   animations: true,
-  sounds: false,
+  soundEffects: false,
+  haptics: true,
   learnMode: false,
   tutorialDone: false,
+  // Darstellung
+  theme: 'system', // 'system' | 'light' | 'dark'
+  matColor: 'green', // 'green' | 'red' | 'blue' | 'black' | 'purple' | 'brown'
+  tileColor: 'yellow', // 'yellow' | 'blue' | 'gray' | 'green' | 'pink' | 'purple'
+  tileShape: 'round', // 'round' | 'sharp'
+  numerals: 'arabic', // 'arabic' | 'chinese'
+  discardSize: 'normal', // 'normal' | 'large'
+  showWall: true,
+  showOpponentConcealed: false, // Lern-/Vorführmodus: fremde Hände offen zeigen
+  // Mehrspieler (diese App spielt nur lokal gegen KI; ohne Wirkung, siehe Hinweistext)
+  allowReconnectAfterAIReplacement: true,
 };
 
-/** Alte Einstellungen (flache Regelfelder) auf das aktuelle Format bringen. */
+/** Alte Einstellungen (flache Regelfelder, frühere Schlüsselnamen) auf das aktuelle Format bringen. */
 function normalizeSettings(s) {
   const out = { ...DEFAULT_SETTINGS, ...s };
   out.rules = { ...(RULE_PRESETS[s.preset] ?? RULE_PRESETS.millington), ...(s.rules ?? {}) };
   for (const k of ['bonusTiles', 'sevenPairs', 'limit']) if (s[k] !== undefined && s.rules === undefined) out.rules[k] = s[k];
   delete out.bonusTiles; delete out.sevenPairs; delete out.limit;
+  if (s.sounds !== undefined && s.soundEffects === undefined) out.soundEffects = s.sounds;
+  delete out.sounds;
+  delete out.confirmDiscard; // Zwei-Schritt-Abwurf ist jetzt immer aktiv
   if (!Array.isArray(out.playerNames) || out.playerNames.length !== 3) out.playerNames = [...DEFAULT_SETTINGS.playerNames];
   return out;
 }
@@ -162,7 +179,8 @@ export function createStore({ storage = safeLocalStorage(), persistence = memory
   function settleHand() {
     const result = scoreRound(state);
     lastScore = result;
-    set(applyPayments(state, result.payments, result.bonus ?? null));
+    // Übungsmodus (disablePointTracking): Hand wird gezeigt, aber nicht auf die Punktestände gebucht.
+    set(settings.disablePointTracking ? state : applyPayments(state, result.payments, result.bonus ?? null));
   }
 
   const api = {
