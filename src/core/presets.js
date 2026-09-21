@@ -4,6 +4,7 @@ import { HONG_KONG, RIICHI } from './rules.js';
 
 const VARIANT_DEFAULTS = {
   minFan: 3, hkPayment: 'half', redFives: true, kuitan: true, kiriageMangan: false, bustEnds: true,
+  roundUpBeforeDoubling: false, settleOnDraw: false, maxFan: 13, hkConversion: 'standard', hkDealerDouble: true,
 };
 
 export const RULE_PRESETS = {
@@ -35,8 +36,8 @@ export const RULE_FIELDS = Object.keys(RULE_PRESETS.millington);
 
 /** Felder, die in der jeweiligen Variante Wirkung haben (für die Einstellungen). */
 export const VARIANT_FIELDS = {
-  classical: ['limit', 'deadWallSize', 'maxChows', 'startScore', 'bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'discarderPaysAll', 'losersPayEachOther', 'eastDoubles', 'loserHandDoubles', 'refillDeadWall', 'robKongForThirteenOrphans', 'optionalHands', 'penalties'],
-  hongkong: ['minFan', 'hkPayment', 'deadWallSize', 'startScore', 'bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'refillDeadWall'],
+  classical: ['limit', 'deadWallSize', 'maxChows', 'startScore', 'bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'discarderPaysAll', 'losersPayEachOther', 'eastDoubles', 'loserHandDoubles', 'refillDeadWall', 'robKongForThirteenOrphans', 'optionalHands', 'penalties', 'roundUpBeforeDoubling', 'settleOnDraw'],
+  hongkong: ['minFan', 'maxFan', 'hkConversion', 'hkPayment', 'hkDealerDouble', 'deadWallSize', 'startScore', 'bonusTiles', 'sevenPairs', 'dealerKeepsOnWin', 'dealerKeepsOnDraw', 'refillDeadWall'],
   riichi: ['redFives', 'kuitan', 'kiriageMangan', 'bustEnds', 'startScore', 'robKongForThirteenOrphans'],
 };
 

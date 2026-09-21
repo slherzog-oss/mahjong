@@ -114,7 +114,8 @@ test('Hong Kong: Mindest-Fan entscheidet über die Mahjong-Erlaubnis', () => {
   const { sheets, payments, net } = scoreRound(s);
   assert.equal(sheets[1].variant, 'hongkong');
   assert.ok(sheets[1].fan >= 0);
-  assert.equal(payments[0][1], 2 * sheets[1].total);
+  // Abwerfender (Sitz 0) ist zugleich Geber: "halbe Verantwortung" (×2) UND Geber-Verdopplung (×2)
+  assert.equal(payments[0][1], 4 * sheets[1].total);
   assert.equal(net.reduce((a, b) => a + b, 0), 0);
   assert.equal(fanOf({ concealed: parseKinds('123b 456c 789k 234k 55b'), melds: [], bonus: [], seatWind: 1, roundWind: 0, winningKind: parseKinds('5b')[0], selfDraw: false }, rules), 2); // Nur Chows + verdeckt
 });
@@ -136,4 +137,42 @@ test('Hong Kong: zufällige Partien halten die Invarianten', () => {
     assert.equal(s.players.reduce((a, p) => a + p.score, 0), 4 * s.ruleSet.startScore);
   }
   assert.ok(wins > 0);
+});
+
+test('Hong Kong: Fan-Limit, Umrechnungstabellen (Uncapped/Simplified) und Geber-Verdopplung', () => {
+  // Faan Limit 10 statt 13: eine Hand mit 13 Fan wird auf 10 gedeckelt
+  const s13 = winner('EEE SSS WWW NNN 55c', { win: '5c' });
+  assert.equal(s13.fan, 13);
+  const s10 = winner('EEE SSS WWW NNN 55c', { win: '5c', rules: createRuleSet({ variant: 'hongkong', maxFan: 10 }) });
+  assert.equal(s10.fan, 10);
+  assert.equal(s10.limit, true);
+  assert.equal(s10.total, hkBasePoints(10));
+
+  // Uncapped: reine Verdopplung 2^Fan statt der "halb scharfen" Tabelle
+  const uncapped = createRuleSet({ variant: 'hongkong', hkConversion: 'uncapped', bonusTiles: false });
+  const su = winner('123b 456c 789k 234k 55b', { win: '5b', rules: uncapped }); // Nur Chows + verdeckt = 2 Fan
+  assert.equal(su.fan, 2);
+  assert.equal(su.total, 4); // 2^2, Tabelle wäre 4 (zufällig gleich hier)
+  const su7 = winner('123b 456b 789b 234b 99b', { win: '9b', rules: uncapped }); // Reine Farbe + Nur Chows + verdeckt = 9 Fan
+  assert.equal(su7.fan, 9);
+  assert.equal(su7.total, 512); // 2^9, nicht die Tabelle (96)
+
+  // Simplified: unter 3 Fan gewinnt die Hand, aber ohne Punktetausch
+  const simplified = createRuleSet({ variant: 'hongkong', hkConversion: 'simplified', minFan: 0, bonusTiles: false });
+  const chicken = winner('123b 456c 789k 234k 55b', { win: '5b', rules: simplified });
+  assert.equal(chicken.fan, 2);
+  assert.equal(chicken.total, 0);
+  assert.equal(chicken.zeroPoints, true);
+  const strong = winner('rrr ggg 123b 456c ww', { win: 'w', rules: simplified }); // Little Three Dragons, 6 Fan
+  assert.ok(strong.fan >= 3);
+  assert.equal(strong.zeroPoints, false);
+  assert.ok(strong.total > 0);
+
+  // Geber-Verdopplung: Selbstzug, Gewinner ist Geber → alle zahlen doppelt
+  const dbl = settleHK([0, 8, 0, 0], { winner: 1, discarder: null, dealer: 1 }, rules);
+  assert.equal(dbl[0][1] + dbl[2][1] + dbl[3][1], 8 * 2 * 3);
+  const noDbl = settleHK([0, 8, 0, 0], { winner: 1, discarder: null, dealer: 2 }, rules);
+  assert.equal(noDbl[0][1] + noDbl[2][1] + noDbl[3][1], 8 * 3);
+  const off = settleHK([0, 8, 0, 0], { winner: 1, discarder: null, dealer: 1 }, createRuleSet({ variant: 'hongkong', hkDealerDouble: false }));
+  assert.equal(off[0][1] + off[2][1] + off[3][1], 8 * 3);
 });
