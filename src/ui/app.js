@@ -18,6 +18,7 @@ import { defaultPresetFor } from '../core/presets.js';
 import { createRuleSet } from '../core/rules.js';
 import { playSound } from './sound.js';
 import { pwa, onPwaChange, registerServiceWorker, applyUpdate, promptInstall, keepAwake, vibrate, isStandalone } from './pwa.js';
+import { isUnlocked, tryUnlock, renderLock } from './lock.js';
 
 const root = document.getElementById('app');
 
@@ -74,8 +75,10 @@ const ui = {
   analysis: { games: [], current: false, record: null, result: null, hand: null, decision: null },
   roundEndOpen: new Set(),
   roundEndKey: null,
+  lockError: false,
 };
 let lastPhaseKey = '';
+let unlocked = isUnlocked();
 
 function applyTheme(settings) {
   const root2 = document.documentElement;
@@ -84,8 +87,13 @@ function applyTheme(settings) {
 }
 
 function render(snap) {
-  const { state } = snap;
   applySettingsToI18n(snap.settings);
+  if (!unlocked) {
+    applyTheme(snap.settings);
+    root.innerHTML = renderLock(t, { error: ui.lockError });
+    return;
+  }
+  const { state } = snap;
   document.body.classList.toggle('no-anim', !snap.settings.animations);
   applyTheme(snap.settings);
   ui.legal = state ? store.legalActions() : [];
@@ -176,6 +184,17 @@ function renderBanner(p) {
 store.subscribe(render);
 onPwaChange(() => render(store.getSnapshot()));
 registerServiceWorker();
+
+async function attemptUnlock() {
+  const input = root.querySelector('.lock-input');
+  const ok = await tryUnlock(input?.value ?? '');
+  if (ok) { unlocked = true; ui.lockError = false; }
+  else { ui.lockError = true; if (input) input.value = ''; }
+  render(store.getSnapshot());
+}
+root.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter' && ev.target.closest('.lock-input')) attemptUnlock();
+});
 
 function discard(tile) {
   ui.selected = null;
@@ -303,6 +322,7 @@ root.addEventListener('click', (ev) => {
       case 'advise': advise(); break;
       case 'advice-why': if (ui.advice) { ui.advice.showWhy = !ui.advice.showWhy; render(snap); } break;
       case 'toggle-assist': ui.advice = null; store.updateSettings({ assist: !store.settings.assist }); break;
+      case 'unlock': attemptUnlock(); break;
       case 'apply-update': applyUpdate(); break;
       case 'install': promptInstall(); break;
       case 'set-setting': store.updateSettings({ [btn.dataset.setting]: btn.dataset.value }); break;

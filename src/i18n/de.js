@@ -352,6 +352,13 @@ export const de = {
     theme: 'Design',
     themes: { system: 'Systemvorgabe', light: 'Hell', dark: 'Dunkel' },
   },
+  lock: {
+    title: 'Mahjong',
+    subtitle: 'Bitte Passwort eingeben, um fortzufahren.',
+    placeholder: 'Passwort',
+    submit: 'Entsperren',
+    wrong: 'Falsches Passwort.',
+  },
 };
 
 export function t(key, vars = {}) {

@@ -353,4 +353,11 @@ export const en = {
     theme: 'Theme',
     themes: { system: 'System Default', light: 'Light', dark: 'Dark' },
   },
+  lock: {
+    title: 'Mahjong',
+    subtitle: 'Enter the password to continue.',
+    placeholder: 'Password',
+    submit: 'Unlock',
+    wrong: 'Wrong password.',
+  },
 };
