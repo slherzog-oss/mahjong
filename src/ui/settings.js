@@ -91,7 +91,6 @@ function extrasGroup(s) {
   let card = row(t('assist'), toggle('assist', s.assist));
   card += row(t('forms.chance'), toggle('showChance', s.showChance));
   card += row(t('forms.title'), toggle('showForms', s.showForms));
-  card += row(t('learnMode'), toggle('learnMode', s.learnMode), t('learnModeHint'));
   card += row(t('animations'), toggle('animations', s.animations));
   return group(t('assist'), card);
 }

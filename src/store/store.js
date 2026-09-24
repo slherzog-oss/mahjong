@@ -35,7 +35,6 @@ export const DEFAULT_SETTINGS = {
   animations: true,
   soundEffects: false,
   haptics: true,
-  learnMode: false,
   tutorialDone: false,
   // Darstellung
   theme: 'dark', // 'system' | 'light' | 'dark' (reference app renders dark by default)
