@@ -97,12 +97,6 @@ function render(snap) {
   document.body.classList.toggle('no-anim', !snap.settings.animations);
   applyTheme(snap.settings);
   ui.legal = state ? store.legalActions() : [];
-  // Mahjong ist nie eine echte Entscheidung (ein gültiger Gewinn wird immer angesagt): sofort ansagen.
-  if (state && snap.humanToAct && ui.legal.some((a) => a.type === 'mahjong') && ui.autoMahjongKey !== stateKey(state)) {
-    ui.autoMahjongKey = stateKey(state);
-    store.dispatch({ type: 'mahjong' });
-    return;
-  }
   // Nichts zu entscheiden (nur Passen möglich): automatisch weiter, ohne Rückfrage.
   if (state && snap.humanToAct && state.phase === 'claiming' && ui.legal.length === 1 && ui.legal[0].type === 'pass' && ui.autoPassKey !== stateKey(state)) {
     ui.autoPassKey = stateKey(state);
