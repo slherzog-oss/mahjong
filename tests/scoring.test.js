@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseKinds, kindOf } from '../src/core/tiles.js';
 import { createRuleSet } from '../src/core/rules.js';
-import { scoreHand, settle, netFromPayments, scoreRound } from '../src/scoring/millington.js';
+import { scoreHand, settle, settleDraw, netFromPayments, scoreRound } from '../src/scoring/millington.js';
 import { SCORE_RULES } from '../src/scoring/table.js';
 import { createGame, applyAction } from '../src/core/state.js';
 import { createRngState } from '../src/core/rng.js';
@@ -265,4 +265,51 @@ test('Gefährliches Spiel (DMJL): Abwerfender zahlt für alle', () => {
   assert.equal(pay[3][1], 300);
   assert.equal(pay[0][1], 0);
   assert.equal(pay[2][1], 0);
+});
+
+test('Hausregel: Grundpunkte vor der Verdopplung auf 10 aufrunden', () => {
+  const rs = createRuleSet({ roundUpBeforeDoubling: true });
+  // 123b 456c 789k EEE rr, Gewinnstein r: Punkte 20+2+4+2+8+2 = 38 (siehe erster Test), nicht durch 10 teilbar
+  const s = winner('123b 456c 789k EEE rr', { win: 'r', rules: rs });
+  assert.equal(s.points, 38);
+  const expectedBase = Math.ceil(s.points / 10) * 10;
+  assert.equal(expectedBase, 40);
+  assert.equal(s.total, Math.min(expectedBase * 2 ** s.doubles, rs.limit));
+  const off = winner('123b 456c 789k EEE rr', { win: 'r' }); // ohne die Option: Standardregel
+  assert.equal(off.total, Math.min(off.points * 2 ** off.doubles, rules.limit));
+  assert.notEqual(off.total, s.total);
+  // Limit-Hände runden nicht: es zählt genau das Limit
+  const lim = winner('19b 19c 19k ESWN rgw E', { win: 'E', rules: rs });
+  assert.equal(lim.total, rs.limit);
+});
+
+test('Unentschieden mit settleOnDraw: alle zählen ihre Hand und rechnen untereinander ab', () => {
+  const rs = createRuleSet({ rounds: 1, settleOnDraw: true });
+  let s = rigGame({
+    hands: ['999b 22b 456c 789k EEE', '55c 66c 77c 88c 99c 1k 2k 3k', '123b 456b 678b 234k 5k', '19b 19c 19k ESWN rgw'],
+    ruleSet: rs,
+  });
+  s = structuredClone(s);
+  s.result = { type: 'draw', roundWind: 0, dealer: 0 };
+  const { sheets, payments, net } = scoreRound(s, rs);
+  assert.equal(sheets.length, 4);
+  assert.ok(sheets.every((sh) => !sh.winner));
+  assert.equal(net.reduce((a, b) => a + b, 0), 0);
+  // Ost (Sitz 0) ist am reichsten (Pung Ost verdeckt): zahlt/erhält nichts Negatives insgesamt möglich, aber Summe bleibt 0
+  assert.ok(payments.some((row) => row.some((v) => v > 0)));
+  // Ohne die Option bleibt ein Unentschieden punktelos
+  const plain = createRuleSet({ rounds: 1 });
+  const zero = scoreRound(s, plain);
+  assert.equal(zero.sheets, null);
+  assert.deepEqual(zero.net, [0, 0, 0, 0]);
+});
+
+test('settleDraw: Ost-Verdopplung, Nullsummenspiel', () => {
+  const rs = createRuleSet({ eastDoubles: true });
+  const pay = settleDraw([40, 20, 0, 10], { dealer: 0 }, rs);
+  assert.equal(pay[1][0], 40); // Sitz 1 zahlt an Ost (0): Differenz 20, ×2 wegen Ost
+  assert.equal(pay[2][0], 80); // Differenz 40, ×2
+  assert.equal(pay[2][3], 10); // Sitz 2 zahlt an Sitz 3: Differenz 10, kein Ost beteiligt
+  const net = netFromPayments(pay);
+  assert.equal(net.reduce((a, b) => a + b, 0), 0);
 });

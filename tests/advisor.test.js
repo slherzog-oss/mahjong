@@ -5,7 +5,10 @@ import { applyAction } from '../src/core/state.js';
 import { adviseDiscard, adviseClaim, specialHandHints, valuePotential } from '../src/advisor/advisor.js';
 import { explainDiscard, explainClaim, explainHints } from '../src/advisor/explain.js';
 import { createRuleSet } from '../src/core/rules.js';
+import { setLanguage } from '../src/i18n/index.js';
 import { rigGame, tileOf } from './helpers.js';
+
+setLanguage('de'); // die Erwartungen unten prüfen deutschen Wortlaut
 
 const rigDiscard = (hand) => rigGame({ hands: [hand, null, null, null] });
 

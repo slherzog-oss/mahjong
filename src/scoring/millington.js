@@ -81,7 +81,9 @@ function totals(lines, ruleSet) {
     else if (l.kind === 'double') doubles += l.value;
     else if (l.kind === 'limit') limits = Math.max(limits, l.value);
   }
-  let total = limits > 0 ? Math.round(ruleSet.limit * limits) : Math.min(points * 2 ** doubles, ruleSet.limit);
+  // Hausregel: Grundpunkte vor der Verdopplung auf 10 aufrunden (nicht bei Limit-Händen).
+  const base = ruleSet.roundUpBeforeDoubling && limits === 0 && points > 0 ? Math.ceil(points / 10) * 10 : points;
+  let total = limits > 0 ? Math.round(ruleSet.limit * limits) : Math.min(base * 2 ** doubles, ruleSet.limit);
   return { points, doubles, limit: limits > 0, total };
 }
 
@@ -265,6 +267,24 @@ export function settle(values, { winner, discarder, dealer, dangerousGame = fals
   return pay;
 }
 
+/**
+ * Zahlungsmatrix bei Unentschieden mit ruleSet.settleOnDraw: kein Gewinner, alle
+ * vier zählen ihre (unvollständige) Hand und rechnen paarweise die Differenz ab,
+ * wie die Verlierer untereinander bei einem regulären Gewinn.
+ */
+export function settleDraw(values, { dealer }, ruleSet) {
+  const pay = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
+  const factor = (a, b) => (ruleSet.eastDoubles && (a === dealer || b === dealer) ? 2 : 1);
+  for (let a = 0; a < 4; a++) {
+    for (let b = a + 1; b < 4; b++) {
+      const diff = values[a] - values[b];
+      if (diff > 0) pay[b][a] += diff * factor(a, b);
+      else if (diff < 0) pay[a][b] += -diff * factor(a, b);
+    }
+  }
+  return pay;
+}
+
 /** Nettowerte je Sitz aus einer Zahlungsmatrix. */
 export function netFromPayments(pay) {
   const net = [0, 0, 0, 0];
@@ -283,6 +303,18 @@ import { seatWind } from '../core/state.js';
 export function scoreRound(state, ruleSet = state.ruleSet) {
   const r = state.result;
   if (!r || r.type !== 'win') {
+    if (r && r.type === 'draw' && ruleSet.settleOnDraw) {
+      const sheets = state.players.map((p) => scoreHand({
+        concealed: p.hand.map(kindOf),
+        melds: p.melds.map((m) => ({ type: m.type, kinds: m.kinds, open: m.open })),
+        bonus: p.bonus.map(kindOf),
+        seatWind: seatWind(state, p.seat),
+        roundWind: state.roundWind,
+        winner: false,
+      }, ruleSet));
+      const payments = settleDraw(sheets.map((s) => s.total), { dealer: state.dealer }, ruleSet);
+      return { sheets, payments, net: netFromPayments(payments) };
+    }
     const zero = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
     return { sheets: null, payments: zero, net: [0, 0, 0, 0] };
   }

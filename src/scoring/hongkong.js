@@ -57,6 +57,16 @@ export function hkBasePoints(fan) {
   return HK_FAN_POINTS[Math.max(0, Math.min(HK_LIMIT_FAN, fan))];
 }
 
+/** Grundwert bei reiner Verdopplung (Option "Uncapped"): 2^Fan, ohne die "halb scharfe" Verlangsamung. */
+export function hkBasePointsUncapped(fan) {
+  return 2 ** Math.max(0, fan);
+}
+
+/** Grundwert nach der gewählten Umrechnungstabelle (ruleSet.hkConversion). */
+export function hkBaseValue(fan, ruleSet = {}) {
+  return ruleSet.hkConversion === 'uncapped' ? hkBasePointsUncapped(fan) : hkBasePoints(fan);
+}
+
 function line(id, extra = {}) {
   return { id, kind: 'fan', value: HK_FANS[id].value, ...extra };
 }
@@ -120,8 +130,12 @@ export function scoreHandHK(input, ruleSet) {
     if (!best || fan > best.fan) best = { lines, fan, sets: c.sets, pair: c.pair };
   }
   if (best.lines.length === 0 || best.fan === 0) best.lines.unshift(line('hk_chicken'));
-  const fan = Math.min(HK_LIMIT_FAN, best.fan);
-  return { winner: true, variant: 'hongkong', lines: best.lines, fan, total: hkBasePoints(fan), limit: fan >= HK_LIMIT_FAN, sets: best.sets, pair: best.pair };
+  const maxFan = ruleSet.maxFan ?? HK_LIMIT_FAN;
+  const fan = Math.min(maxFan, best.fan);
+  // Option "Simplified": Hände unter 3 Fan gewinnen die Runde, aber ohne Punktetausch.
+  const zeroPoints = ruleSet.hkConversion === 'simplified' && fan < 3;
+  const total = zeroPoints ? 0 : hkBaseValue(fan, ruleSet);
+  return { winner: true, variant: 'hongkong', lines: best.lines, fan, total, limit: fan >= maxFan, zeroPoints, sets: best.sets, pair: best.pair };
 
   function scoreStandard(d, winGroup) {
     const sets = d.sets.map((s, i) => ({ type: s.type, kinds: s.kinds, open: !selfDraw && s.type === 'pung' && i === winGroup }));
@@ -167,14 +181,18 @@ export function fanOf(input, ruleSet) {
   return scoreHandHK({ ...input, winner: true }, ruleSet).fan;
 }
 
-/** Zahlungsmatrix: values = Grundwerte je Sitz (nur der Gewinner hat einen). */
-export function settleHK(values, { winner, discarder }, ruleSet) {
+/**
+ * Zahlungsmatrix: values = Grundwerte je Sitz (nur der Gewinner hat einen).
+ * dealer: Sitz des Gebers; mit ruleSet.hkDealerDouble zahlt/erhält der Geber doppelt.
+ */
+export function settleHK(values, { winner, discarder, dealer }, ruleSet) {
   const pay = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
   const base = values[winner];
+  const dealerFactor = ruleSet.hkDealerDouble && (winner === dealer || discarder === dealer) ? 2 : 1;
   if (discarder === null || discarder === undefined) {
-    for (let s = 0; s < 4; s++) if (s !== winner) pay[s][winner] = base;
+    for (let s = 0; s < 4; s++) if (s !== winner) pay[s][winner] = base * dealerFactor;
   } else {
-    pay[discarder][winner] = base * (ruleSet.hkPayment === 'full' ? 3 : 2);
+    pay[discarder][winner] = base * (ruleSet.hkPayment === 'full' ? 3 : 2) * dealerFactor;
   }
   return pay;
 }
@@ -207,7 +225,7 @@ export function scoreRoundHK(state, ruleSet = state.ruleSet) {
     }
     return scoreHandHK(base, ruleSet);
   });
-  const payments = settleHK(sheets.map((s) => s.total), { winner: r.winner, discarder: r.from }, ruleSet);
+  const payments = settleHK(sheets.map((s) => s.total), { winner: r.winner, discarder: r.from, dealer: state.dealer }, ruleSet);
   return { sheets, payments, net: netFromPaymentsHK(payments) };
 }
 

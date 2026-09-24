@@ -29,10 +29,15 @@ export const CHINESE_CLASSICAL = Object.freeze({
   eastDoubles: true,
   loserHandDoubles: false, // Handform-Verdopplungen auch für Verlierer (DMJL)
   penalties: false, // DMJL "Gefährliches Spiel": wer offensichtlich gefährlich abwirft, zahlt für alle
+  roundUpBeforeDoubling: false, // Grundpunkte vor der Verdopplung auf 10 aufrunden (Hausregel)
+  settleOnDraw: false, // bei Unentschieden trotzdem die (unvollständigen) Hände zählen und untereinander abrechnen
 
   // Hong Kong (variant 'hongkong')
   minFan: 3, // Mindest-Fan für Mahjong (0, 1, 3)
   hkPayment: 'half', // Abwurf: 'half' Abwerfender zahlt das Doppelte, 'full' das Dreifache
+  maxFan: 13, // Fan-Obergrenze (Limit); Option 10
+  hkConversion: 'standard', // 'standard' (gebräuchliche Tabelle), 'uncapped' (reine Verdopplung 2^Fan), 'simplified' (unter 3 Fan: kein Punktetausch)
+  hkDealerDouble: true, // Geber zahlt und erhält doppelt
 
   // Riichi (variant 'riichi')
   redFives: true, // rote Fünfer als Dora
