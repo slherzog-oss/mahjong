@@ -59,7 +59,8 @@ function opponentHtml(state, p, humanSeat, ui) {
   </div>`;
 }
 
-function chanceHtml(state, seat) {
+function chanceHtml(state, seat, canWin) {
+  if (canWin) return fmtChance(-1, 0, 1);
   const p = state.players[seat];
   const kinds = p.hand.map(kindOf);
   const n = kinds.length;
@@ -187,7 +188,7 @@ export function renderPlay(snap, ui) {
           ${me.riichi ? `<span class="riichi-badge">${t('riichi')}</span>` : ''}
           ${furiten ? `<span class="furiten-badge" title="${t('furitenHint')}">${t('furiten')}</span>` : ''}
           <span class="score">${me.score}</span>
-          ${snap.settings.assist && snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat) + mcHtml(ui.mc) : ''}
+          ${snap.settings.assist && snap.settings.showChance && me.hand.length > 0 ? chanceHtml(state, humanSeat, legal.some((a) => a.type === 'mahjong')) + mcHtml(ui.mc) : ''}
         </div>
         <div class="me-discards">${me.discards.map((id) => tileHtmlById(id, { classes: 'small' + (me.riichi && id === me.riichi.tile ? ' riichi-tile' : '') })).join('')}</div>
         <div class="me-melds">${me.melds.map(meldHtml).join('')}${me.bonus.map((id) => tileHtmlById(id, { classes: 'small bonus' })).join('')}</div>
