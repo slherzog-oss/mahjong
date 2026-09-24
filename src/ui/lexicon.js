@@ -87,7 +87,7 @@ export function renderLexicon(ui) {
 /** Panel "Mögliche Blätter": Formen mit Chance, Wert, Erwartung, Zielwahl. */
 export function renderFormsPanel(forms, { target, expanded, showKinds, variant = 'classical' }) {
   const lex = fullLexicon(variant);
-  const rows = forms.slice(0, 7).map((f) => {
+  const rows = forms.slice(0, 7).sort((a, b) => b.chance - a.chance).map((f) => {
     const name = formName(f.form, variant);
     const active = target === f.form;
     const pct = Math.round(f.chance * 100);

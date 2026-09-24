@@ -72,8 +72,30 @@ export function explainHints(hints) {
   }).filter(Boolean);
 }
 
-/** Ausführliche Begründung ("Warum?"): Begriffe und alle Kandidaten mit Zahlen. */
-export function explainWhy(advice, kind) {
+/** Was ich bei den anderen Spielern sehe: Abwürfe, offene Sätze, Riichi. */
+function explainOthers(state, seat) {
+  const out = [t('adv.why.othersHeading')];
+  for (const p of state.players) {
+    if (p.seat === seat) continue;
+    const name = p.human ? t('you') : t('playerNames')[p.seat];
+    const bits = [`${p.discards.length} ${t('adv.why.discardsWord')}`];
+    if (p.melds.length) bits.push(`${p.melds.length} ${t('adv.why.exposedWord')}`);
+    if (p.riichi) bits.push(t('riichi'));
+    out.push(`${name}: ${bits.join(', ')}`);
+  }
+  return out;
+}
+
+/** Was noch offen ist: welche Steine den empfohlenen Abwurf noch verbessern würden. */
+function explainOpen(best) {
+  const out = [t('adv.why.openHeading')];
+  const tiles = (best?.tiles ?? []).slice().sort((a, b) => b.count - a.count).slice(0, 6);
+  out.push(tiles.length ? tiles.map((x) => `${KIND_NAMES[x.kind]} (${x.count})`).join(', ') : t('adv.why.openNone'));
+  return out;
+}
+
+/** Ausführliche Begründung ("Warum?"): was ich sehe, was offen ist, Begriffe und alle Kandidaten mit Zahlen. */
+export function explainWhy(state, seat, advice, kind) {
   const out = [];
   if (kind === 'claim') {
     out.push(t('adv.why.claim'));
@@ -83,8 +105,11 @@ export function explainWhy(advice, kind) {
     if (r.key === 'noGain') out.push(t('adv.why.noGain', { before: advice.before, after: advice.after }));
     if (r.key === 'noYaku') out.push(t('adv.noYaku'));
     if (r.key === 'lowFan') out.push(t('adv.lowFan'));
+    out.push(...explainOthers(state, seat));
     return out;
   }
+  out.push(...explainOthers(state, seat));
+  out.push(...explainOpen(advice.best));
   out.push(t('adv.why.discard'));
   out.push(t('adv.why.terms'));
   const rows = (advice.options ?? []).slice(0, 5).map((o) => t('adv.why.row', {

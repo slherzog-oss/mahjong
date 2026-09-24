@@ -97,6 +97,21 @@ function render(snap) {
   document.body.classList.toggle('no-anim', !snap.settings.animations);
   applyTheme(snap.settings);
   ui.legal = state ? store.legalActions() : [];
+  // Nichts zu entscheiden (nur Passen möglich): automatisch weiter, ohne Rückfrage.
+  if (state && snap.humanToAct && state.phase === 'claiming' && ui.legal.length === 1 && ui.legal[0].type === 'pass' && ui.autoPassKey !== stateKey(state)) {
+    ui.autoPassKey = stateKey(state);
+    store.dispatch({ type: 'pass' });
+    return;
+  }
+  // Auswahl und Empfehlung verfallen mit jedem Zug - vor der Anzeige/Auto-Empfehlung prüfen,
+  // damit eine frische Empfehlung für den neuen Zug nicht sofort wieder verworfen wird.
+  const phaseKey = state ? `${state.handNumber}:${state.turn}:${state.phase}:${state.log.length}` : '';
+  if (phaseKey !== lastPhaseKey) {
+    lastPhaseKey = phaseKey;
+    if (!(state && state.phase === 'discard')) ui.selected = null;
+    ui.advice = null;
+    ui.riichiMode = false;
+  }
   setRedFives(!!state && state.ruleSet.variant === 'riichi' && !!state.ruleSet.redFives);
   if (!ui.lexicon.variant) ui.lexicon.variant = snap.settings.rules.variant ?? 'classical';
   ui.pwa = { updateReady: pwa.updateReady, canInstall: !!pwa.installPrompt && !isStandalone(), version: pwa.version };
@@ -132,8 +147,8 @@ function render(snap) {
   root.innerHTML = renderBanner(ui.pwa) + '<div class="app-body">' + html + '</div>' + renderTabBar(ui.tab) + overlay + (tutorialOpen ? renderTutorial(ui.tutorial, snap.settings.rules.variant ?? 'classical') : '');
   root.querySelectorAll('details').forEach((d, i) => { if (openDetails[i]) d.open = true; });
   requestMonteCarlo(snap);
-  // Lernmodus: Empfehlung automatisch nach jedem eigenen Zug
-  if (snap.settings.assist && snap.settings.learnMode && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {
+  // Empfehlung automatisch nach jedem eigenen Zug, solange der Coach an ist
+  if (snap.settings.assist && state && snap.humanToAct && ['discard', 'claiming'].includes(state.phase) && !ui.advice && ui.learnKey !== stateKey(state)) {
     ui.learnKey = stateKey(state);
     ui.formsOpen = true;
     advise();
@@ -160,14 +175,6 @@ function render(snap) {
     else if (last?.type === 'chow') showToast(t('toast.chow'));
     else if (last?.type === 'bonus') showToast(bonusToastName(kindOf(last.tile)));
     else if (last?.type === 'riichi') showToast(t('riichiDeclared'));
-  }
-  const key = state ? `${state.handNumber}:${state.turn}:${state.phase}:${state.log.length}` : '';
-  if (key !== lastPhaseKey) {
-    lastPhaseKey = key;
-    // Auswahl und Empfehlung verfallen mit jedem Zug
-    if (!(state && state.phase === 'discard')) ui.selected = null;
-    ui.advice = null;
-    ui.riichiMode = false;
   }
   document.body.classList.toggle('in-game', !!state);
 }
@@ -216,11 +223,11 @@ function advise() {
       hints: explainHints(adv.hints),
       alternatives: adv.alternatives,
       best: adv.best,
-      why: explainWhy(adv, 'discard'),
+      why: explainWhy(state, humanSeat, adv, 'discard'),
     };
   } else if (state.phase === 'claiming' || legal.some((a) => a.type === 'mahjong')) {
     const adv = state.phase === 'claiming' ? adviseClaim(state, humanSeat) : { action: { type: 'mahjong' }, reason: { key: 'mahjong' } };
-    ui.advice = { lines: explainClaim(adv), hints: [], action: adv.action.type, why: explainWhy(adv, 'claim') };
+    ui.advice = { lines: explainClaim(adv), hints: [], action: adv.action.type, why: explainWhy(state, humanSeat, adv, 'claim') };
   }
   render(store.getSnapshot());
 }
